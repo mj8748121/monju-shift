@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文殊 シフト管理</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+:root{--bg:#f4f6fb;--surface:#ffffff;--surface2:#f0f2f8;--border:#dde1ee;--accent:#4a7cf6;--accent2:#f0882a;--green:#2db866;--red:#e84545;--text:#1a1f36;--muted:#7280a0;--admin:#9b5de5;--gold:#e6a800;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-family:'DM Mono',monospace;font-size:17px;color:var(--accent);letter-spacing:2px;}
+.logo span{color:var(--accent2);}
+.tab-btn{padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:'Noto Sans JP',sans-serif;font-size:13px;transition:all .2s;}
+.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.tab-btn.admin-tab.active{background:var(--admin);border-color:var(--admin);}
+.page{display:none;padding:24px;max-width:1100px;margin:0 auto;}
+.page.active{display:block;}
+.two-col{display:grid;grid-template-columns:360px 1fr;gap:20px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:14px;color:var(--accent);display:flex;align-items:center;gap:8px;}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;margin-top:10px;letter-spacing:.5px;}
+input[type=text],input[type=password],input[type=email],select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:64px;}
+.btn{padding:9px 20px;border-radius:8px;border:none;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-admin{background:var(--admin);color:#fff;}
+.btn-gold{background:var(--gold);color:#111;font-weight:700;}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn:hover{filter:brightness(1.1);}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cal-month{font-size:15px;font-weight:700;}
+.cal-nav{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 12px;cursor:pointer;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-dh{text-align:center;font-size:10px;color:var(--muted);padding:4px 0;}
+.cal-day{aspect-ratio:1;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:38px;}
+.cal-day:hover{border-color:var(--accent);}
+.cal-day.empty{cursor:default;pointer-events:none;}
+.cal-day.wanted{background:rgba(91,138,247,.15);border-color:rgba(91,138,247,.5);}
+.cal-day.wanted .dn{color:var(--accent);font-weight:700;}
+.cal-day.selected{background:rgba(78,203,122,.2);border-color:var(--green);}
+.cal-day.selected .dn{color:var(--green);font-weight:700;}
+.cal-day.confirmed-day{background:rgba(247,212,91,.15);border-color:var(--gold);}
+.cal-day.confirmed-day .dn{color:var(--gold);font-weight:700;}
+.cal-day.sun .dn{color:var(--red);}
+.cal-day.sat .dn{color:#7bb8f7;}
+.cal-day.past{opacity:.3;pointer-events:none;}
+.dn{font-size:13px;}
+.dd{width:4px;height:4px;border-radius:50%;margin-top:2px;}
+.chip{display:inline-block;padding:5px 12px;border-radius:20px;font-size:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;transition:all .2s;margin:3px;}
+.chip:hover,.chip.sel{background:var(--accent);border-color:var(--accent);color:#fff;}
+.role-chip{display:inline-block;padding:4px 10px;border-radius:20px;font-size:12px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .2s;margin:2px;}
+.role-chip:hover{border-color:var(--accent2);color:var(--accent2);}
+.role-chip.rsel{background:rgba(247,162,91,.2);border-color:var(--accent2);color:var(--accent2);font-weight:500;}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;margin:2px;}
+.tag-blue{background:rgba(91,138,247,.15);color:var(--accent);border:1px solid rgba(91,138,247,.3);}
+.tag-green{background:rgba(78,203,122,.15);color:var(--green);border:1px solid rgba(78,203,122,.3);}
+.tag-gold{background:rgba(247,212,91,.15);color:var(--gold);border:1px solid rgba(247,212,91,.3);}
+.tag-orange{background:rgba(247,162,91,.15);color:var(--accent2);border:1px solid rgba(247,162,91,.3);}
+.tag-red{background:rgba(247,107,107,.15);color:var(--red);border:1px solid rgba(247,107,107,.3);}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{background:var(--surface2);padding:8px 10px;text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:hover td{background:rgba(255,255,255,.02);}
+.stat-box{background:var(--surface2);border-radius:10px;padding:16px;text-align:center;}
+.stat-num{font-size:30px;font-weight:700;font-family:'DM Mono',monospace;}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px;}
+.prog{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:3px;transition:width .4s;}
+.notice{padding:11px 14px;border-radius:8px;border-left:3px solid var(--accent);background:rgba(91,138,247,.08);font-size:13px;color:var(--muted);margin-bottom:12px;}
+.notice.ok{border-color:var(--green);background:rgba(78,203,122,.08);color:var(--green);}
+.notice.warn{border-color:var(--accent2);background:rgba(247,162,91,.08);color:var(--accent2);}
+.notice.gold{border-color:var(--gold);background:rgba(247,212,91,.08);color:var(--gold);}
+.conf-banner{background:linear-gradient(135deg,rgba(247,212,91,.15),rgba(247,162,91,.1));border:1px solid var(--gold);border-radius:12px;padding:18px;text-align:center;margin-bottom:16px;}
+.conf-banner h3{color:var(--gold);font-size:17px;margin-bottom:5px;}
+.conf-banner p{color:var(--muted);font-size:13px;}
+.overlay{position:fixed;inset:0;background:rgba(10,12,20,.88);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:200;}
+.overlay.show{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:420px;max-width:92vw;max-height:90vh;overflow-y:auto;}
+.modal-box h2{font-size:17px;font-weight:700;margin-bottom:5px;}
+.modal-box p{font-size:12px;color:var(--muted);margin-bottom:14px;}
+.itabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap;}
+.itab{padding:6px 14px;border-radius:6px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-family:'Noto Sans JP',sans-serif;}
+.itab.active{background:var(--surface2);color:var(--text);}
+.avail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
+.avail-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.avail-card.conf{border-color:var(--gold);background:rgba(247,212,91,.06);}
+.flex{display:flex;gap:10px;align-items:center;}
+.flex-end{justify-content:flex-end;}
+.flex-between{justify-content:space-between;}
+.mt{margin-top:10px;}
+.scroll-x{overflow-x:auto;}
+#loading{position:fixed;inset:0;background:#f4f6fb;display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;}
+.spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .3s;z-index:400;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0);}
+@media(max-width:768px){.two-col{grid-template-columns:1fr;}.three-col{grid-template-columns:1fr 1fr;}.page{padding:14px;}}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:14px">Firebaseに接続中...</div></div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="overlay">
+  <div class="modal-box">
+    <h2 style="color:var(--admin)">🔐 管理者ログイン</h2>
+    <p>パスワードを入力してください</p>
+    <input type="password" id="auth-input" placeholder="パスワード" style="margin-bottom:12px">
+    <div class="flex" style="gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="cancelAuth()">キャンセル</button>
+      <button class="btn btn-admin" style="flex:1" onclick="doAuth()">ログイン</button>
+    </div>
+    <p id="auth-err" style="color:var(--red);font-size:12px;margin-top:8px;display:none">パスワードが違います</p>
+  </div>
+</div>
+
+<!-- STAFF LOGIN MODAL -->
+<div id="staff-login-modal" class="overlay show">
+  <div class="modal-box" style="text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">📚</div>
+    <h2 style="color:var(--accent);margin-bottom:4px">文殊 シフト管理</h2>
+    <p style="margin-bottom:20px">名前とパスワードを入力してください</p>
+    <label style="text-align:left">名前を選択</label>
+    <select id="login-name" style="margin-bottom:10px">
+      <option value="">-- 名前を選んでください --</option>
+    </select>
+    <label style="text-align:left">パスワード</label>
+    <input type="password" id="login-pw" placeholder="パスワード" style="margin-bottom:14px">
+    <button class="btn btn-primary" style="width:100%" onclick="doStaffLogin()">ログイン</button>
+    <p id="login-err" style="color:var(--red);font-size:12px;margin-top:8px;display:none">名前またはパスワードが違います</p>
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+    <button class="btn btn-ghost btn-sm" style="width:100%" onclick="openAdminFromLogin()">⚙️ 管理者としてログイン</button>
+  </div>
+</div>
+
+<!-- DAY MODAL（管理者：日付+担当+時間登録） -->
+<div id="day-modal" class="overlay">
+  <div class="modal-box">
+    <h2 style="color:var(--accent)" id="day-modal-title"></h2>
+    <p>この日に必要な担当と時間帯を設定してください</p>
+    <label>必要な担当（複数選択可）</label>
+    <div id="day-modal-roles" style="margin-bottom:14px"></div>
+    <label>時間帯を追加</label>
+    <div id="day-modal-slots" style="margin-bottom:8px;min-height:24px"></div>
+    <div class="flex" style="gap:6px;margin-bottom:16px">
+      <input type="text" id="day-modal-from" placeholder="開始 17:00" style="flex:1">
+      <input type="text" id="day-modal-to" placeholder="終了 21:00" style="flex:1">
+      <button class="btn btn-ghost btn-sm" onclick="addDaySlot()">追加</button>
+    </div>
+    <div class="flex" style="gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeDayModal()">キャンセル</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveDayModal()">✅ 登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEND MODAL（通知送信） -->
+<div id="send-modal" class="overlay">
+  <div class="modal-box" style="width:500px">
+    <h2 style="color:var(--gold)">📧 確定通知を送る</h2>
+    <p id="send-modal-date"></p>
+    <div id="send-modal-members"></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+    <label>全体への備考（任意）</label>
+    <textarea id="send-note" placeholder="全員への連絡事項があれば入力" style="margin-bottom:16px"></textarea>
+    <div class="flex" style="gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeSendModal()">キャンセル</button>
+      <button class="btn btn-gold" style="flex:1" id="send-btn" onclick="sendConfirmEmails()">📧 メールを送信する</button>
+    </div>
+    <div class="notice" style="margin-top:12px;font-size:11px">LINEコピー用メッセージも同時に生成されます</div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">文殊 <span>SHIFT</span></div>
+  <div class="flex" style="gap:8px">
+    <button class="tab-btn active" id="btn-staff" onclick="showPage('staff',this)">📅 シフト提出</button>
+    <button class="tab-btn admin-tab" id="btn-admin" onclick="requireAuth()">⚙️ 管理者</button>
+  </div>
+</header>
+<div id="toast"></div>
+
+<!-- STAFF PAGE -->
+<div id="page-staff" class="page active">
+  <div id="global-conf-banner"></div>
+  <!-- ログイン済みユーザー表示 -->
+  <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px">👤</div>
+      <div>
+        <div style="font-weight:700;font-size:15px" id="login-display-name"></div>
+        <div style="font-size:11px;color:var(--muted)">ログイン中</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="staffLogout()">ログアウト</button>
+  </div>
+  <div id="staff-form" style="display:none">
+    <div id="my-conf-notice"></div>
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-title">📋 出勤希望日カレンダー</div>
+          <div class="notice">🔵 青い日付 = 運営が出勤を希望している日<br>クリックすると担当・時間帯が表示されます</div>
+          <div class="cal-header">
+            <button class="cal-nav" onclick="staffPrev()">‹</button>
+            <div class="cal-month" id="staff-cal-month"></div>
+            <button class="cal-nav" onclick="staffNext()">›</button>
+          </div>
+          <div class="cal-grid" id="staff-cal"></div>
+          <div style="margin-top:10px;font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap">
+            <span><span style="color:var(--accent)">●</span> 運営希望日</span>
+            <span><span style="color:var(--green)">●</span> 出勤可</span>
+            <span><span style="color:var(--gold)">●</span> 確定済み</span>
+          </div>
+        </div>
+        <!-- 担当・時間選択パネル -->
+        <div class="card" id="day-panel" style="display:none">
+          <div class="card-title">🏷️ <span id="panel-date-lbl"></span> の担当・時間</div>
+          <div id="panel-req-notice"></div>
+          <label>担当できる業務（複数選択可）</label>
+          <div id="panel-roles" style="margin-bottom:12px"></div>
+          <label>出勤できる時間</label>
+          <div id="panel-time-info" style="margin-bottom:6px"></div>
+          <div class="flex" style="gap:8px;margin-bottom:4px">
+            <div style="flex:1"><label>開始</label><input type="text" id="panel-from" placeholder="17:00"></div>
+            <div style="flex:1"><label>終了</label><input type="text" id="panel-to" placeholder="21:00"></div>
+          </div>
+          <div id="panel-partial" style="display:none">
+            <div class="notice warn" style="margin-bottom:8px">⚠️ 指定時間より短い場合はコメントに記入してください</div>
+          </div>
+          <label>コメント（部分出勤など）</label>
+          <textarea id="panel-comment" placeholder="例：18:00〜のみ出勤可能です" style="min-height:50px;margin-bottom:12px"></textarea>
+          <div class="flex flex-end" style="gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="closePanel()">閉じる</button>
+            <button class="btn btn-success btn-sm" onclick="savePanelData()">✅ 決定</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">💬 全体コメント・備考</div>
+          <textarea id="staff-comment" placeholder="全体的な注意事項や希望があれば入力してください"></textarea>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">✅ 選択中の出勤可能日</div>
+          <div id="staff-selected"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📌 確定済みシフト</div>
+          <div id="my-conf-shifts"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📊 提出状況</div>
+          <div id="my-status"></div>
+        </div>
+        <div class="flex flex-end">
+          <button class="btn btn-success" onclick="submitShift()">📤 シフトを提出する</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PAGE -->
+<div id="page-admin" class="page">
+  <div class="itabs">
+    <button class="itab active" onclick="showAtab('overview',this)">📊 提出状況</button>
+    <button class="itab" onclick="showAtab('calendar',this)">📆 日程設定</button>
+    <button class="itab" onclick="showAtab('confirm',this)">✅ シフト確定</button>
+    <button class="itab" onclick="showAtab('members',this)">👥 メンバー</button>
+    <button class="itab" onclick="showAtab('settings',this)">⚙️ 設定</button>
+  </div>
+  <div id="atab-overview">
+    <div class="three-col" id="ov-stats" style="margin-bottom:16px"></div>
+    <div class="card">
+      <div class="card-title flex flex-between"><span>📋 バイト生別 提出状況</span><button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 CSV出力</button></div>
+      <div class="scroll-x"><table class="tbl"><thead><tr><th>名前</th><th>提出</th><th>出勤可能日数</th><th>担当</th><th>提出日時</th><th>コメント</th></tr></thead><tbody id="ov-tbody"></tbody></table></div>
+    </div>
+    <div class="card"><div class="card-title">📅 日別 出勤可能人数</div><div id="ov-daily"></div></div>
+  </div>
+  <div id="atab-calendar" style="display:none">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-title">📆 出勤希望日の登録</div>
+          <div class="notice">日付をクリック→担当・時間をセットで登録<br>登録済みの日付をもう一度クリックで削除</div>
+          <div class="cal-header"><button class="cal-nav" onclick="adminPrev()">‹</button><div class="cal-month" id="admin-cal-month"></div><button class="cal-nav" onclick="adminNext()">›</button></div>
+          <div class="cal-grid" id="admin-cal"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🏷️ 担当の種類を管理</div>
+          <div id="role-list" style="margin-bottom:12px"></div>
+          <div class="flex" style="gap:8px"><input type="text" id="new-role" placeholder="例：高校生担当"><button class="btn btn-primary btn-sm" onclick="addRole()">追加</button></div>
+        </div>
+      </div>
+      <div><div class="card"><div class="card-title">📋 登録済み出勤希望日</div><div id="wanted-list"></div></div></div>
+    </div>
+  </div>
+  <div id="atab-confirm" style="display:none">
+    <div class="notice gold">✅ 確定後「📧 通知を送る」でメール＋LINEメッセージを送れます</div>
+    <div id="conf-list"></div>
+    <div class="card"><div class="card-title">📋 確定済みシフト一覧</div><div id="conf-summary"></div></div>
+  </div>
+  <div id="atab-members" style="display:none">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-title">➕ バイト生を追加</div>
+          <label>名前</label><input type="text" id="new-staff-name" placeholder="名前">
+          <label>メールアドレス（確定通知用）</label><input type="email" id="new-staff-email" placeholder="example@gmail.com">
+          <div class="flex flex-end mt"><button class="btn btn-primary btn-sm" onclick="addStaff()">追加</button></div>
+        </div>
+      </div>
+      <div><div class="card"><div class="card-title">👥 メンバー一覧（<span id="member-count">0</span>名）</div><div id="member-list"></div></div></div>
+    </div>
+  </div>
+  <div id="atab-settings" style="display:none">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-title">🔑 管理者パスワード変更</div>
+          <label>新しいパスワード</label><input type="password" id="new-pw">
+          <label>確認</label><input type="password" id="new-pw2">
+          <div class="flex flex-end mt"><button class="btn btn-admin btn-sm" onclick="changePw()">変更する</button></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">🗑️ データ管理</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px">提出データのリセット、または全データをリセットします。</p>
+          <div class="flex" style="gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="clearSubs()">提出データをリセット</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAll()">全データをリセット</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+const FIREBASE_CONFIG={apiKey:"AIzaSyAAsZD64KilFj5W3cutktACg2NUR0VdZCs",authDomain:"sift-sistem.firebaseapp.com",databaseURL:"https://sift-sistem-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"sift-sistem",storageBucket:"sift-sistem.firebasestorage.app",messagingSenderId:"468155536054",appId:"1:468155536054:web:723abf32b49cfc43598c17"};
+const EMAILJS_KEY="7vv5moBvMHF7Uok4h",EMAILJS_SVC="mj8748121",EMAILJS_TPL="template_2doystj";
+const PW_KEY="monju_pw",ROOT="monju_v4";
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db=firebase.database();
+emailjs.init(EMAILJS_KEY);
+
+function defState(){return{adminPassword:"monju2024",staffList:[{name:"田中",email:"",password:"1234"},{name:"佐藤",email:""},{name:"山城",email:""},{name:"比嘉",email:""},{name:"新垣",email:""},{name:"伊波",email:""},{name:"宮城",email:""},{name:"玉城",email:""},{name:"仲村",email:""},{name:"大城",email:""},{name:"石川",email:""},{name:"金城",email:""},{name:"平良",email:""},{name:"島袋",email:""},{name:"上原",email:""}],roles:["小学生担当","中学生担当","集団授業","事務・受付","プロクラ・EG"],wantedDays:[],dayMeta:{},submissions:{},confirmed:{}};}
+
+let S=defState(),adminAuthed=false,currentStaff=null,panelDate=null,dayModalDate=null,dayModalSlots=[],sendModalDate=null;
+let draftData = {days:[], dayData:{}, comment:""}; // 未提出の下書きデータ
+const NOW=new Date();
+let sY=NOW.getFullYear(),sM=NOW.getMonth(),aY=NOW.getFullYear(),aM=NOW.getMonth();
+
+let inited=false;
+db.ref(ROOT).on("value",snap=>{
+  const d=snap.val();
+  if(d){
+    S={adminPassword:d.adminPassword||"monju2024",staffList:d.staffList||defState().staffList,roles:d.roles||defState().roles,wantedDays:d.wantedDays||[],dayMeta:d.dayMeta||{},submissions:d.submissions||{},confirmed:d.confirmed||{}};
+    // draftDataはFirebaseと独立して管理するので上書きしない
+  }
+  else{S=defState();save();}
+  if(!inited){
+    inited=true;document.getElementById("loading").style.display="none";
+    renderLoginSelect();
+    if(!checkStaffSession()){
+      document.getElementById("staff-login-modal").classList.add("show");
+    }
+    renderSCal();renderGBanner();
+  }else{
+    renderLoginSelect();renderSCal();renderGBanner();
+    if(currentStaff)refreshSV();if(adminAuthed)renderCurAtab();
+  }
+});
+
+function save(){db.ref(ROOT).set({adminPassword:S.adminPassword||"monju2024",staffList:S.staffList,roles:S.roles,wantedDays:S.wantedDays,dayMeta:S.dayMeta,submissions:S.submissions,confirmed:S.confirmed}).catch(e=>console.error(e));}
+function getPw(){return S.adminPassword||"monju2024";}
+function setPw(p){
+  S.adminPassword=p;
+  save();
+}
+
+const WD=["日","月","火","水","木","金","土"];
+const MON=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+function fmt(y,m,d){return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+function parseD(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);}
+function jpD(s){const dt=parseD(s);return `${dt.getMonth()+1}/${dt.getDate()}（${WD[dt.getDay()]}）`;}
+function todayS(){return fmt(NOW.getFullYear(),NOW.getMonth(),NOW.getDate());}
+function sName(st){return typeof st==="string"?st:st.name;}
+function sEmail(st){return typeof st==="object"?(st.email||""):"" ;}
+
+function buildCal(cid,y,m,lid,clickFn,clsFn,dotFn){
+  document.getElementById(lid).textContent=`${y}年 ${MON[m]}`;
+  const el=document.getElementById(cid);el.innerHTML="";
+  WD.forEach((w,i)=>{const h=document.createElement("div");h.className="cal-dh";h.textContent=w;if(i===0)h.style.color="var(--red)";if(i===6)h.style.color="#7bb8f7";el.appendChild(h);});
+  const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),ts=todayS();
+  for(let i=0;i<first;i++){const b=document.createElement("div");b.className="cal-day empty";el.appendChild(b);}
+  for(let d=1;d<=days;d++){
+    const ds=fmt(y,m,d),dow=new Date(y,m,d).getDay();
+    const cell=document.createElement("div");cell.className="cal-day";
+    if(dow===0)cell.classList.add("sun");if(dow===6)cell.classList.add("sat");
+    if(ds<ts&&cid==="staff-cal")cell.classList.add("past");
+    const cls=clsFn?clsFn(ds):"";if(cls)cls.split(" ").forEach(c=>c&&cell.classList.add(c));
+    const dn=document.createElement("div");dn.className="dn";dn.textContent=d;cell.appendChild(dn);
+    const dot=dotFn?dotFn(ds):null;if(dot){const dd=document.createElement("div");dd.className="dd";dd.style.background=dot;cell.appendChild(dd);}
+    cell.onclick=()=>clickFn(ds);el.appendChild(cell);
+  }
+}
+
+function toast(msg,err){const el=document.getElementById("toast");el.textContent=(err?"⚠️ ":"✅ ")+msg;el.style.background=err?"var(--red)":"var(--green)";el.classList.add("show");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),3200);}
+
+function showPage(page,btn){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page-"+page).classList.add("active");
+  if(btn)btn.classList.add("active");
+  if(page==="staff"){
+    if(!currentStaff){document.getElementById("staff-login-modal").classList.add("show");return;}
+    renderSCal();renderGBanner();
+  }
+  if(page==="admin")renderAdmin();
+}
+
+function requireAuth(){
+  if(adminAuthed){showPage("admin",document.getElementById("btn-admin"));return;}
+  document.getElementById("auth-modal").classList.add("show");
+  document.getElementById("auth-input").value="";
+  document.getElementById("auth-err").style.display="none";
+  setTimeout(()=>document.getElementById("auth-input").focus(),100);
+}
+function doAuth(){
+  if(document.getElementById("auth-input").value===getPw()){
+    adminAuthed=true;document.getElementById("auth-modal").classList.remove("show");
+    document.getElementById("staff-login-modal").classList.remove("show");
+    document.getElementById("btn-admin").classList.add("active");document.getElementById("btn-staff").classList.remove("active");
+    showPage("admin",null);
+  }else{document.getElementById("auth-err").style.display="block";}
+}
+function cancelAuth(){document.getElementById("auth-modal").classList.remove("show");}
+document.getElementById("auth-input").addEventListener("keydown",e=>{if(e.key==="Enter")doAuth();});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&document.getElementById("staff-login-modal").classList.contains("show")){doStaffLogin();}
+});
+
+function showAtab(tab,btn){
+  document.querySelectorAll("[id^=atab-]").forEach(el=>el.style.display="none");
+  document.querySelectorAll(".itab").forEach(b=>b.classList.remove("active"));
+  document.getElementById("atab-"+tab).style.display="block";btn.classList.add("active");
+  renderAtab(tab);
+}
+function renderCurAtab(){const a=document.querySelector(".itab.active");if(!a)return;const t=a.getAttribute("onclick").match(/'(\w+)'/)[1];renderAtab(t);}
+function renderAtab(t){
+  if(t==="overview"){renderOvStats();renderOvTable();renderOvDaily();}
+  if(t==="calendar"){renderACal();renderWanted();renderRoles();}
+  if(t==="confirm")renderConfList();
+  if(t==="members")renderMembers();
+}
+function renderAdmin(){renderCurAtab();}
+
+// ====== STAFF ======
+function renderChips(){
+  const el=document.getElementById("staff-chips");el.innerHTML="";
+  S.staffList.forEach(st=>{const n=sName(st);const c=document.createElement("span");c.className="chip"+(currentStaff===n?" sel":"");c.textContent=n;c.onclick=()=>selectStaff(n);el.appendChild(c);});
+}
+function selectStaff(name){currentStaff=name;document.getElementById("staff-form").style.display="block";refreshSV();}
+function refreshSV(){renderSCal();renderSelected();renderMyStatus();renderMyConf();renderMyConfNotice();document.getElementById("staff-comment").value=draftData.comment||"";}
+function myDays(){return draftData.days||[];}
+
+function renderSCal(){
+  buildCal("staff-cal",sY,sM,"staff-cal-month",
+    ds=>{
+      if(!S.wantedDays.includes(ds))return;
+      if(isConfSt(ds,currentStaff))return;
+      const days=myDays();
+      if(!draftData.days)draftData.days=[];
+      if(!draftData.dayData)draftData.dayData={};
+      if(days.includes(ds)){
+        draftData.days=draftData.days.filter(d=>d!==ds);
+        delete draftData.dayData[ds];
+        renderSCal();renderSelected();renderMyStatus();
+        document.getElementById("day-panel").style.display="none";
+      }else{
+        draftData.days.push(ds);
+        renderSCal();renderSelected();renderMyStatus();openPanel(ds);
+      }
+    },
+    ds=>{
+      const w=S.wantedDays.includes(ds),sel=myDays().includes(ds),conf=currentStaff&&isConfSt(ds,currentStaff);
+      if(conf)return"confirmed-day";if(w&&sel)return"selected wanted";if(w)return"wanted";return"";
+    },
+    ds=>{
+      if(!S.wantedDays.includes(ds))return null;
+      if(currentStaff&&isConfSt(ds,currentStaff))return"var(--gold)";
+      return myDays().includes(ds)?"var(--green)":"var(--accent)";
+    }
+  );
+}
+function staffPrev(){sM--;if(sM<0){sM=11;sY--;}renderSCal();}
+function staffNext(){sM++;if(sM>11){sM=0;sY++;}renderSCal();}
+
+function openPanel(ds){
+  panelDate=ds;
+  const meta=S.dayMeta[ds]||{};
+  const dd=draftData.dayData?.[ds]||{};
+  document.getElementById("panel-date-lbl").textContent=jpD(ds);
+  const rr=meta.roles||[],rs=meta.slots||[];
+  const ni=document.getElementById("panel-req-notice");
+  if(rr.length||rs.length){
+    let h='<div class="notice gold" style="margin-bottom:10px">';
+    if(rr.length)h+=`<strong>運営からの依頼担当：</strong>${rr.join("・")}<br>`;
+    if(rs.length)h+=`<strong>依頼時間帯：</strong>${rs.map(s=>s.from+"〜"+s.to).join("、")}`;
+    h+="</div>";ni.innerHTML=h;
+  }else{ni.innerHTML="";}
+  const showR=rr.length?rr:S.roles;
+  const myR=dd.roles||[];
+  document.getElementById("panel-roles").innerHTML=showR.map(r=>`<span class="role-chip ${myR.includes(r)?"rsel":""}" onclick="this.classList.toggle('rsel')">${r}</span>`).join("");
+  const ti=document.getElementById("panel-time-info");
+  if(rs.length){
+    ti.innerHTML=rs.map(s=>`<span class="tag tag-blue">${s.from}〜${s.to}</span>`).join("")+`<span style="font-size:11px;color:var(--muted);margin-left:6px">← 運営指定時間</span>`;
+    document.getElementById("panel-partial").style.display="block";
+  }else{ti.innerHTML="";document.getElementById("panel-partial").style.display="none";}
+  document.getElementById("panel-from").value=dd.from||(rs[0]?.from||"");
+  document.getElementById("panel-to").value=dd.to||(rs[0]?.to||"");
+  document.getElementById("panel-comment").value=dd.comment||"";
+  document.getElementById("day-panel").style.display="block";
+  document.getElementById("day-panel").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function closePanel(){document.getElementById("day-panel").style.display="none";panelDate=null;}
+function savePanelData(){
+  if(!panelDate||!currentStaff)return;
+  const roles=[...document.querySelectorAll("#panel-roles .role-chip.rsel")].map(c=>c.textContent);
+  const from=document.getElementById("panel-from").value.trim();
+  const to=document.getElementById("panel-to").value.trim();
+  const comment=document.getElementById("panel-comment").value.trim();
+  if(!draftData.dayData)draftData.dayData={};
+  draftData.dayData[panelDate]={roles,from,to,comment};
+  closePanel();renderSelected();toast("担当・時間を設定しました");
+}
+
+function renderSelected(){
+  const el=document.getElementById("staff-selected");
+  const days=[...myDays()].sort();
+  if(!days.length){el.innerHTML=`<span style="color:var(--muted);font-size:13px">まだ選択されていません</span>`;return;}
+  el.innerHTML=days.map(d=>{
+    const dd=draftData.dayData?.[d]||{};
+    const roles=dd.roles?.length?dd.roles.map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:2px 7px;cursor:default">${r}</span>`).join(""):`<span style="font-size:11px;color:var(--accent2);cursor:pointer" onclick="openPanel('${d}')">＋担当を選ぶ</span>`;
+    const time=(dd.from&&dd.to)?`<span class="tag tag-blue" style="font-size:10px">${dd.from}〜${dd.to}</span>`:"";
+    const comment=dd.comment?`<div style="font-size:11px;color:var(--muted);margin-top:2px">📝 ${dd.comment}</div>`:"";
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span class="tag tag-blue" style="cursor:pointer" onclick="openPanel('${d}')">${jpD(d)}</span>
+        <span onclick="removeDay('${d}')" style="cursor:pointer;color:var(--red);font-size:12px">×</span>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">${roles}${time}</div>${comment}
+    </div>`;
+  }).join("");
+}
+function removeDay(ds){
+  if(!currentStaff)return;
+  const sub=S.submissions[currentStaff]||{days:[],dayData:{}};
+  draftData.days=draftData.days.filter(d=>d!==ds);
+  if(draftData.dayData)delete draftData.dayData[ds];
+  renderSCal();renderSelected();renderMyStatus();
+  if(panelDate===ds)closePanel();
+}
+
+function renderMyConf(){
+  const el=document.getElementById("my-conf-shifts");if(!currentStaff)return;
+  const entries=Object.entries(S.confirmed||{}).filter(([,o])=>o&&o[currentStaff]).sort(([a],[b])=>a.localeCompare(b));
+  if(!entries.length){el.innerHTML=`<span style="color:var(--muted);font-size:13px">まだ確定されていません</span>`;return;}
+  el.innerHTML=entries.map(([d,o])=>{
+    const c=o[currentStaff];
+    const r=(c.roles||[]).map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:2px 7px;cursor:default">${r}</span>`).join("");
+    const t=(c.from&&c.to)?`<span class="tag tag-gold" style="font-size:10px">${c.from}〜${c.to}</span>`:"";
+    const n=c.note?`<div style="font-size:11px;color:var(--muted);margin-top:3px">📝 ${c.note}</div>`:"";
+    return `<div style="padding:10px;background:rgba(247,212,91,.07);border:1px solid var(--gold);border-radius:8px;margin-bottom:8px">
+      <div style="font-weight:600;color:var(--gold);margin-bottom:5px">${jpD(d)}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">${r}${t}</div>${n}
+    </div>`;
+  }).join("");
+}
+function renderMyConfNotice(){
+  const el=document.getElementById("my-conf-notice");if(!currentStaff){el.innerHTML="";return;}
+  const entries=Object.entries(S.confirmed||{}).filter(([,o])=>o&&o[currentStaff]).sort(([a],[b])=>a.localeCompare(b));
+  if(!entries.length){el.innerHTML="";return;}
+  const lines=entries.map(([d,o])=>{const c=o[currentStaff];const r=(c.roles||[]).join("・");const t=(c.from&&c.to)?`${c.from}〜${c.to}`:"";return jpD(d)+(r?`（${r}）`:"")+( t?` ${t}`:"");}).join("　");
+  el.innerHTML=`<div class="conf-banner"><h3>🎉 シフトが確定しました！</h3><p>${lines}</p></div>`;
+}
+function renderGBanner(){
+  const el=document.getElementById("global-conf-banner");
+  const n=Object.values(S.confirmed||{}).filter(o=>o&&Object.keys(o).length>0).length;
+  el.innerHTML=n?`<div class="notice gold" style="margin-bottom:16px">📌 ${n}日分のシフトが確定しています。名前を選択して確認してください。</div>`:"";
+}
+function renderMyStatus(){
+  const el=document.getElementById("my-status");if(!currentStaff){el.innerHTML="";return;}
+  const sub=S.submissions[currentStaff];const hs=!!(sub?.submittedAt);
+  const wm=draftData.days.filter(d=>S.wantedDays.includes(d)).length;
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="stat-box"><div class="stat-num" style="color:${hs?"var(--green)":"var(--red)"};font-size:20px">${hs?"提出済":"未提出"}</div><div class="stat-label">提出状況</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--accent);font-size:20px">${wm}/${S.wantedDays.length}</div><div class="stat-label">出勤可能日</div></div>
+  </div>${hs?`<div style="font-size:11px;color:var(--muted)">提出：${new Date(sub.submittedAt).toLocaleString("ja-JP")}</div>`:""}`;
+}
+function submitShift(){
+  if(!currentStaff)return;
+  if(!myDays().length){toast("出勤可能日を選択してください",true);return;}
+  // 提出ボタンを押した時にdraftDataをFirebaseに保存
+  draftData.comment = document.getElementById("staff-comment").value;
+  draftData.submittedAt = new Date().toISOString();
+  S.submissions[currentStaff] = {
+    days: draftData.days||[],
+    dayData: draftData.dayData||{},
+    comment: draftData.comment,
+    submittedAt: draftData.submittedAt
+  };
+  save();
+  renderMyStatus();toast(currentStaff+"さんのシフトを提出しました！");
+}
+
+// ====== ADMIN OVERVIEW ======
+function renderOvStats(){
+  const total=S.staffList.length;
+  const sub=S.staffList.filter(st=>S.submissions[sName(st)]?.submittedAt).length;
+  const cd=Object.values(S.confirmed||{}).filter(o=>o&&Object.keys(o).length>0).length;
+  document.getElementById("ov-stats").innerHTML=`
+    <div class="stat-box"><div class="stat-num" style="color:var(--green)">${sub}</div><div class="stat-label">提出済み</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--red)">${total-sub}</div><div class="stat-label">未提出</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--gold)">${cd}</div><div class="stat-label">確定日数</div></div>`;
+}
+function renderOvTable(){
+  document.getElementById("ov-tbody").innerHTML=S.staffList.map(st=>{
+    const n=sName(st),s=S.submissions[n];const hs=!!(s?.submittedAt);
+    const days=s?.submittedAt?(s?.days||[]).filter(d=>S.wantedDays.includes(d)):[];
+    const mc=Object.entries(S.confirmed||{}).filter(([,o])=>o&&o[n]).length;
+    const ar=[...new Set(Object.values(s?.dayData||{}).flatMap(d=>d.roles||[]))];
+    const dt=s?.submittedAt?new Date(s.submittedAt).toLocaleString("ja-JP",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+    return `<tr><td><strong>${n}</strong></td>
+      <td>${hs?'<span class="tag tag-green">✅ 提出済</span>':'<span class="tag tag-red">⏳ 未提出</span>'}</td>
+      <td><span style="font-size:15px;font-weight:700;color:var(--accent)">${days.length}</span><span style="color:var(--muted);font-size:11px">/${S.wantedDays.length}日</span>${mc?`<span class="tag tag-gold" style="margin-left:4px">確定${mc}日</span>`:""}</td>
+      <td>${ar.map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:2px 7px;cursor:default">${r}</span>`).join("")||"—"}</td>
+      <td style="font-size:11px;color:var(--muted)">${dt}</td>
+      <td style="max-width:150px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s?.comment||"—"}</td></tr>`;
+  }).join("");
+}
+function renderOvDaily(){
+  const el=document.getElementById("ov-daily");const wanted=[...S.wantedDays].sort();
+  if(!wanted.length){el.innerHTML=`<div style="color:var(--muted);font-size:13px">出勤希望日が登録されていません</div>`;return;}
+  el.innerHTML=`<div class="avail-grid">${wanted.map(ds=>{
+    const meta=S.dayMeta[ds]||{};const co=S.confirmed[ds]||{};const cn=Object.keys(co);
+    const av=S.staffList.filter(st=>{const sub=S.submissions[sName(st)];return sub?.submittedAt&&sub?.days?.includes(ds);});
+    const isC=cn.length>0;const pct=S.staffList.length?Math.round(av.length/S.staffList.length*100):0;
+    const rh=(meta.roles||[]).map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:1px 6px;cursor:default">${r}</span>`).join("");
+    const sh=(meta.slots||[]).map(s=>`${s.from}〜${s.to}`).join("、");
+    return `<div class="avail-card ${isC?"conf":""}">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${jpD(ds)}</div>
+      ${rh?`<div style="margin-bottom:3px">${rh}</div>`:""}
+      ${sh?`<div style="font-size:10px;color:var(--accent2);margin-bottom:3px">${sh}</div>`:""}
+      <div style="font-size:24px;font-weight:700;color:var(--accent)">${av.length}</div>
+      <div style="font-size:11px;color:var(--muted)">/${S.staffList.length}人</div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%;background:${isC?"var(--gold)":"var(--accent)"}"></div></div>
+      ${isC?`<div style="font-size:10px;color:var(--gold);margin-top:4px">✅ ${cn.join("、")}</div>`:`<div style="font-size:10px;color:var(--muted);margin-top:4px">${av.slice(0,4).map(sName).join("、")}${av.length>4?"…":""}</div>`}
+    </div>`;
+  }).join("")}</div>`;
+}
+
+// ====== ADMIN CALENDAR ======
+function renderACal(){
+  buildCal("admin-cal",aY,aM,"admin-cal-month",
+    ds=>{
+      if(S.wantedDays.includes(ds)){S.wantedDays=S.wantedDays.filter(d=>d!==ds);if(S.dayMeta)delete S.dayMeta[ds];save();renderACal();renderWanted();}
+      else openDayModal(ds);
+    },
+    ds=>{const w=S.wantedDays.includes(ds);const c=S.confirmed[ds]&&Object.keys(S.confirmed[ds]).length>0;if(c)return"confirmed-day";if(w)return"wanted";return"";},
+    null
+  );
+}
+function adminPrev(){aM--;if(aM<0){aM=11;aY--;}renderACal();}
+function adminNext(){aM++;if(aM>11){aM=0;aY++;}renderACal();}
+
+function openDayModal(ds){
+  dayModalDate=ds;dayModalSlots=(S.dayMeta[ds]?.slots||[]).map(s=>({...s}));
+  const existing=S.dayMeta[ds]?.roles||[];
+  document.getElementById("day-modal-title").textContent=jpD(ds)+" の設定";
+  document.getElementById("day-modal-roles").innerHTML=S.roles.map(r=>`<span class="role-chip ${existing.includes(r)?"rsel":""}" onclick="this.classList.toggle('rsel')">${r}</span>`).join("");
+  renderDMSlots();document.getElementById("day-modal-from").value="";document.getElementById("day-modal-to").value="";
+  document.getElementById("day-modal").classList.add("show");
+}
+function renderDMSlots(){document.getElementById("day-modal-slots").innerHTML=dayModalSlots.map((s,i)=>`<span class="tag tag-blue" style="margin:2px">${s.from}〜${s.to} <span onclick="rmDaySlot(${i})" style="cursor:pointer;color:var(--red)">×</span></span>`).join("");}
+function addDaySlot(){const f=document.getElementById("day-modal-from").value.trim(),t=document.getElementById("day-modal-to").value.trim();if(!f||!t){toast("開始・終了を入力してください",true);return;}dayModalSlots.push({from:f,to:t});renderDMSlots();document.getElementById("day-modal-from").value="";document.getElementById("day-modal-to").value="";}
+function rmDaySlot(i){dayModalSlots.splice(i,1);renderDMSlots();}
+function closeDayModal(){document.getElementById("day-modal").classList.remove("show");dayModalDate=null;}
+function saveDayModal(){
+  if(!dayModalDate)return;
+  const roles=[...document.querySelectorAll("#day-modal-roles .role-chip.rsel")].map(c=>c.textContent);
+  if(!S.dayMeta)S.dayMeta={};S.dayMeta[dayModalDate]={roles,slots:dayModalSlots};
+  if(!S.wantedDays.includes(dayModalDate))S.wantedDays.push(dayModalDate);
+  save();closeDayModal();renderACal();renderWanted();toast(jpD(dayModalDate)+" を登録しました");
+}
+
+function renderWanted(){
+  const el=document.getElementById("wanted-list");const sorted=[...S.wantedDays].sort();
+  if(!sorted.length){el.innerHTML=`<span style="color:var(--muted);font-size:13px">まだ登録されていません</span>`;return;}
+  el.innerHTML=sorted.map(d=>{
+    const meta=S.dayMeta[d]||{};
+    const rh=(meta.roles||[]).map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:2px 7px;cursor:default">${r}</span>`).join("");
+    const sh=(meta.slots||[]).map(s=>`<span class="tag tag-blue" style="font-size:10px">${s.from}〜${s.to}</span>`).join("");
+    return `<div style="padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">
+      <div class="flex flex-between" style="margin-bottom:6px"><strong>${jpD(d)}</strong>
+        <div class="flex" style="gap:6px"><button class="btn btn-ghost btn-sm" onclick="openDayModal('${d}')">編集</button><button class="btn btn-danger btn-sm" onclick="rmWanted('${d}')">削除</button></div>
+      </div><div style="display:flex;gap:4px;flex-wrap:wrap">${rh}${sh}</div>
+    </div>`;
+  }).join("");
+}
+function rmWanted(ds){S.wantedDays=S.wantedDays.filter(d=>d!==ds);if(S.dayMeta)delete S.dayMeta[ds];save();renderACal();renderWanted();}
+
+function renderRoles(){
+  document.getElementById("role-list").innerHTML=(S.roles||[]).map((r,i)=>`<div class="flex flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="role-chip rsel" style="cursor:default">${r}</span><button class="btn btn-danger btn-sm" onclick="rmRole(${i})">削除</button></div>`).join("")||`<div style="color:var(--muted);font-size:13px">担当が登録されていません</div>`;
+}
+function addRole(){const input=document.getElementById("new-role");const r=input.value.trim();if(!r)return;if((S.roles||[]).includes(r)){toast("既に登録されています",true);return;}if(!S.roles)S.roles=[];S.roles.push(r);save();input.value="";renderRoles();toast(r+" を追加しました");}
+function rmRole(i){S.roles.splice(i,1);save();renderRoles();}
+
+// ====== ADMIN CONFIRM ======
+function renderConfList(){
+  const el=document.getElementById("conf-list");const wanted=[...S.wantedDays].sort();
+  if(!wanted.length){el.innerHTML=`<div style="color:var(--muted)">出勤希望日が登録されていません</div>`;return;}
+  el.innerHTML=wanted.map(ds=>{
+    const meta=S.dayMeta[ds]||{},co=S.confirmed[ds]||{},cn=Object.keys(co),isC=cn.length>0;
+    const av=S.staffList.filter(st=>{const sub=S.submissions[sName(st)];return sub?.submittedAt&&sub?.days?.includes(ds);});
+    const rrh=(meta.roles||[]).length?`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">必要な担当：</div>${(meta.roles||[]).map(r=>`<span class="role-chip rsel" style="cursor:default">${r}</span>`).join("")}</div>`:"";
+    const rsh=(meta.slots||[]).length?`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">指定時間帯：</div>${(meta.slots||[]).map(s=>`<span class="tag tag-blue">${s.from}〜${s.to}</span>`).join("")}</div>`:"";
+    const mc=av.map(st=>{
+      const n=sName(st),dd=S.submissions[n]?.dayData?.[ds]||{},asgn=co[n]||null,isA=!!asgn;
+      const sr=dd.roles||[],sf=dd.from||"",st2=dd.to||"",sc=dd.comment||"";
+      // チェックボックスで出勤者選択
+      const isSelected = isA || false;
+      return `<div style="padding:12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;border:1px solid ${isA?"var(--gold)":"var(--border)"}" id="mc-card-${ds}-${n}">
+        <div class="flex flex-between" style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="checkbox" id="mc-chk-${ds}-${n}" ${isA?"checked":""} onchange="toggleStaffSelect('${ds}','${n}')" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)">
+            <div style="font-weight:600">${n}${isA?' <span class="tag tag-gold" style="font-size:10px">確定済</span>':''}</div>
+          </div>
+        </div>
+        ${sr.length?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">本人希望担当：${sr.map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:2px 7px;cursor:default">${r}</span>`).join("")}</div>`:""}
+        ${(sf&&st2)?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">本人希望時間：<span class="tag tag-blue" style="font-size:10px">${sf}〜${st2}</span>${sc?` <span style="color:var(--accent2);font-size:10px">📝 ${sc}</span>`:""}</div>`:""}
+        <div id="mc-detail-${ds}-${n}" style="display:${isA?"block":"none"}">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:5px">割り当て担当：</div>
+          <div style="margin-bottom:8px">${S.roles.map(r=>{const s=(asgn?.roles||[]).includes(r);return `<span class="role-chip ${s?"rsel":""}" onclick="tConfRole('${ds}','${n}','${r}',this)">${r}</span>`;}).join("")}</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">確定時間：</div>
+          <div class="flex" style="gap:8px;margin-bottom:6px">
+            <input type="text" id="cf-f-${ds}-${n}" value="${asgn?.from||sf||""}" placeholder="${(meta.slots||[])[0]?.from||"17:00"}" style="flex:1;font-size:12px;padding:6px 8px">
+            <span style="color:var(--muted);align-self:center">〜</span>
+            <input type="text" id="cf-t-${ds}-${n}" value="${asgn?.to||st2||""}" placeholder="${(meta.slots||[])[0]?.to||"21:00"}" style="flex:1;font-size:12px;padding:6px 8px">
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">個別備考：</div>
+          <input type="text" id="cf-n-${ds}-${n}" value="${asgn?.note||""}" placeholder="個別の備考（任意）" style="font-size:12px;padding:6px 8px">
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="flex flex-between" style="margin-bottom:12px">
+        <div><div style="font-size:15px;font-weight:700">${jpD(ds)}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">提出あり：${av.length}名（☑ チェックした人のみ確定されます）</div></div>
+        ${isC?'<span class="tag tag-gold">✅ 確定済み</span>':'<span class="tag tag-orange">⏳ 未確定</span>'}
+      </div>
+      ${rrh}${rsh}
+      <div style="margin-bottom:12px">${av.length?mc:`<div style="color:var(--muted);font-size:13px">出勤可能な提出者がいません</div>`}</div>
+      <div class="flex flex-end" style="gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="clrConf('${ds}')">クリア</button>
+        <button class="btn btn-primary btn-sm" onclick="saveConf('${ds}')">✅ この日を確定する</button>
+        <button class="btn btn-gold btn-sm" onclick="openSendModal('${ds}')">📧 通知を送る</button>
+      </div>
+    </div>`;
+  }).join("");
+  renderConfSum();
+}
+
+function tConfRole(ds,name,role,el){
+  if(!S.confirmed[ds])S.confirmed[ds]={};
+  if(!S.confirmed[ds][name])S.confirmed[ds][name]={roles:[],from:"",to:"",note:""};
+  const arr=S.confirmed[ds][name].roles;const idx=arr.indexOf(role);
+  if(idx>=0)arr.splice(idx,1);else arr.push(role);
+  el.classList.toggle("rsel",arr.includes(role));
+}
+function saveConf(ds){
+  const av=S.staffList.filter(st=>{const sub=S.submissions[sName(st)];return sub?.submittedAt&&sub?.days?.includes(ds);});
+  if(!av.length){toast("対象者がいません",true);return;}
+  if(!S.confirmed[ds])S.confirmed[ds]={};let saved=0;
+  av.forEach(st=>{
+    const n=sName(st);
+    const chk=document.getElementById(`mc-chk-${ds}-${n}`);
+    // チェックが外れている人はスキップ（出勤なし）
+    if(chk&&!chk.checked){
+      delete S.confirmed[ds][n];
+      return;
+    }
+    const ff=document.getElementById(`cf-f-${ds}-${n}`);
+    const tt=document.getElementById(`cf-t-${ds}-${n}`);
+    const nn=document.getElementById(`cf-n-${ds}-${n}`);
+    if(!ff)return;
+    const ex=S.confirmed[ds][n]||{roles:[]};
+    S.confirmed[ds][n]={roles:ex.roles,from:ff.value,to:tt.value,note:nn.value};
+    saved++;
+  });
+  if(!saved){toast("出勤させるスタッフを選択してください",true);return;}
+  save();toast(jpD(ds)+" のシフトを確定しました");renderConfList();
+}
+function clrConf(ds){S.confirmed[ds]={};save();renderConfList();}
+function renderConfSum(){
+  const el=document.getElementById("conf-summary");
+  const entries=Object.entries(S.confirmed||{}).filter(([,o])=>o&&Object.keys(o).length>0).sort(([a],[b])=>a.localeCompare(b));
+  if(!entries.length){el.innerHTML=`<div style="color:var(--muted);font-size:13px">まだ確定されていません</div>`;return;}
+  el.innerHTML=`<table class="tbl"><thead><tr><th>日付</th><th>確定メンバー・担当・時間</th><th>人数</th><th>操作</th></tr></thead><tbody>${entries.map(([ds,obj])=>{
+    const names=Object.keys(obj);
+    const detail=names.map(n=>{const c=obj[n];const r=(c.roles||[]).map(r=>`<span class="role-chip rsel" style="font-size:10px;padding:2px 6px;cursor:default">${r}</span>`).join("");const t=(c.from&&c.to)?`<span class="tag tag-gold" style="font-size:10px">${c.from}〜${c.to}</span>`:"";return `<div style="margin-bottom:3px"><strong>${n}</strong>：${r}${t}</div>`;}).join("");
+    return `<tr><td><strong>${jpD(ds)}</strong></td><td>${detail}</td><td style="font-family:monospace;color:var(--accent)">${names.length}名</td><td><div class="flex" style="gap:4px"><button class="btn btn-gold btn-sm" onclick="openSendModal('${ds}')">📧</button><button class="btn btn-danger btn-sm" onclick="clrConf('${ds}')">取消</button></div></td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+// ====== SEND MODAL ======
+function openSendModal(ds){
+  const co=S.confirmed[ds]||{};
+  const names=Object.keys(co).filter(n=>co[n]&&(co[n].roles?.length>0||co[n].from));
+  if(!names.length){toast("先にシフトを確定してください",true);return;}
+  sendModalDate=ds;
+  document.getElementById("send-modal-date").textContent=jpD(ds)+" のシフト確定通知";
+  document.getElementById("send-note").value="";
+  document.getElementById("send-modal-members").innerHTML=names.map(name=>{
+    const c=co[name];const st=S.staffList.find(s=>sName(s)===name);const em=st?sEmail(st):"";
+    const r=(c.roles||[]).join("・"),t=(c.from&&c.to)?`${c.from}〜${c.to}`:"";
+    return `<div style="padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">
+      <div style="font-weight:600;margin-bottom:6px">${name}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">担当：${r||"—"}　時間：${t||"—"}</div>
+      <label style="margin-top:4px">送信先メール</label>
+      <input type="email" id="se-${name}" value="${em}" placeholder="メールアドレス" style="font-size:12px;padding:6px 8px">
+    </div>`;
+  }).join("");
+  document.getElementById("send-modal").classList.add("show");
+}
+function closeSendModal(){document.getElementById("send-modal").classList.remove("show");sendModalDate=null;}
+
+async function sendConfirmEmails(){
+  if(!sendModalDate)return;
+  const ds=sendModalDate,co=S.confirmed[ds]||{},names=Object.keys(co);
+  const note=document.getElementById("send-note").value.trim();
+  const btn=document.getElementById("send-btn");btn.disabled=true;btn.textContent="送信中...";
+  let ok=0,ng=0;
+  const lines=[`【シフト確定のお知らせ】`,`${jpD(ds)}のシフトが確定しました。`,"","出勤メンバー："];
+  for(const name of names){
+    const c=co[name];const em=(document.getElementById(`se-${name}`)?.value||"").trim();
+    const r=(c.roles||[]).join("・"),t=(c.from&&c.to)?`${c.from}〜${c.to}`:"";
+    lines.push(`・${name}さん${r?"（"+r+"）":""}${t?" "+t:""}`);
+    if(em){try{await emailjs.send(EMAILJS_SVC,EMAILJS_TPL,{staff_name:name,date:jpD(ds),role:r||"未設定",time:t||"未設定",note:[c.note,note].filter(Boolean).join("　")||"なし",reply_to:em,to_email:em,to_name:name});ok++;}catch(e){console.error(e);ng++;}}
+    // メールアドレスが登録済みなら更新
+    const idx=S.staffList.findIndex(s=>sName(s)===name);
+    if(idx>=0&&em){if(typeof S.staffList[idx]==="string")S.staffList[idx]={name,email:em};else S.staffList[idx].email=em;}
+  }
+  save();
+  if(note){lines.push("",`備考：${note}`);}lines.push("","▼シフト確認はこちら",location.href);
+  btn.disabled=false;btn.textContent="📧 メールを送信する";
+  const finalCo=S.confirmed[ds]||{};
+  closeSendModal();showLineCopy(lines.join("\n"),ok,ng,ds,finalCo,note);
+}
+
+function makeGCalUrlForPerson(ds, name, conf, note) {
+  const dt = parseD(ds);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth()+1).padStart(2,"0");
+  const d2 = String(dt.getDate()).padStart(2,"0");
+  const fromTime = conf.from ? conf.from.replace(":","")+"00" : "090000";
+  const toTime   = conf.to   ? conf.to.replace(":","")+"00"   : "180000";
+  const startDT  = y+m+d2+"T"+fromTime;
+  const endDT    = y+m+d2+"T"+toTime;
+  const roles    = (conf.roles||[]).join("・");
+  const timeStr  = (conf.from&&conf.to) ? conf.from+"〜"+conf.to : "";
+  const title    = encodeURIComponent("【文殊】"+name+" "+jpD(ds));
+  const detailLines = [
+    name,
+    "担当："+(roles||"未設定"),
+    timeStr?"時間："+timeStr:"",
+    conf.note?"備考："+conf.note:"",
+    note?"全体備考："+note:""
+  ].filter(Boolean).join("\n");
+  const details = encodeURIComponent(detailLines);
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text="+title+"&dates="+startDT+"/"+endDT+"&details="+details;
+}
+
+
+function showLineCopy(msg, ok, ng, ds, co, note){
+  const info=ok>0?`メール${ok}件送信完了${ng>0?"（失敗"+ng+"件）":""}`:(ng>0?"メール送信失敗":"メールアドレス未設定のためメール未送信");
+  // 人数分のGoogleカレンダーボタンを生成
+  let gcalBtn = "";
+  if(ds && co){
+    const confNames = Object.keys(co).filter(n=>co[n]&&(co[n].roles?.length>0||co[n].from));
+    if(confNames.length){
+      gcalBtn = confNames.map(name => {
+        const url = makeGCalUrlForPerson(ds, name, co[name], note);
+        return `<a href="${url}" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;margin:2px">📅 ${name}をカレンダーに追加</a>`;
+      }).join("");
+    }
+  }
+  document.body.insertAdjacentHTML("beforeend",`<div style="position:fixed;inset:0;background:rgba(10,12,20,.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:300" id="lco">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:480px;max-width:92vw;max-height:90vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--gold)">📬 通知送信完了</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${info}</div>
+      ${gcalBtn ? `<div style="margin-bottom:14px">${gcalBtn}</div>` : ""}
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">📋 LINEに貼り付けるメッセージ：</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;white-space:pre-wrap;line-height:1.7;margin-bottom:12px" id="lct">${msg}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-success btn-sm" onclick="cpyLine()">📋 LINEメッセージをコピー</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('lco').remove()">閉じる</button>
+      </div>
+    </div>
+  </div>`);
+}
+function cpyLine(){const t=document.getElementById("lct").textContent;navigator.clipboard.writeText(t).then(()=>toast("コピーしました！LINEに貼り付けてください")).catch(()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);toast("コピーしました！LINEに貼り付けてください");});}
+
+// ====== MEMBERS ======
+function renderMembers(){
+  document.getElementById("member-count").textContent=S.staffList.length;
+  document.getElementById("member-list").innerHTML=S.staffList.map((st,i)=>{
+    const n=sName(st),em=sEmail(st),s=S.submissions[n],hs=!!(s?.submittedAt);
+    const pw=typeof st==="object"?(st.password||"1234"):"1234";
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div class="flex flex-between" style="margin-bottom:4px">
+        <div><span style="font-weight:600">${n}</span>${hs?'<span class="tag tag-green" style="margin-left:6px;font-size:10px">提出済</span>':'<span class="tag tag-red" style="margin-left:6px;font-size:10px">未提出</span>'}</div>
+        <button class="btn btn-danger btn-sm" onclick="rmStaff(${i})">削除</button>
+      </div>
+      <div class="flex" style="gap:6px;margin-bottom:4px">
+        <input type="email" value="${em}" placeholder="メールアドレス" style="font-size:12px;padding:5px 8px;flex:1" onchange="updEmail(${i},this.value)">
+      </div>
+      <div class="flex" style="gap:6px">
+        <input type="text" value="${pw}" placeholder="パスワード（初期値：1234）" style="font-size:12px;padding:5px 8px;flex:1" onchange="updPw(${i},this.value)">
+      </div>
+    </div>`;
+  }).join("");
+}
+function addStaff(){
+  const n=document.getElementById("new-staff-name").value.trim(),em=document.getElementById("new-staff-email").value.trim();
+  if(!n)return;if(S.staffList.some(s=>sName(s)===n)){toast("既に登録されています",true);return;}
+  S.staffList.push({name:n,email:em,password:'1234'});save();
+  document.getElementById("new-staff-name").value="";document.getElementById("new-staff-email").value="";
+  renderMembers();toast(n+"さんを追加しました");
+}
+function rmStaff(i){const n=sName(S.staffList[i]);if(!confirm(`${n}さんを削除しますか？`))return;S.staffList.splice(i,1);delete S.submissions[n];save();renderMembers();}
+function updEmail(i,v){if(typeof S.staffList[i]==="string")S.staffList[i]={name:S.staffList[i],email:v,password:"1234"};else S.staffList[i].email=v;save();}
+function updPw(i,v){if(typeof S.staffList[i]==="string")S.staffList[i]={name:S.staffList[i],email:"",password:v};else S.staffList[i].password=v;save();toast("パスワードを更新しました");}
+
+// ====== SETTINGS ======
+function changePw(){const p1=document.getElementById("new-pw").value,p2=document.getElementById("new-pw2").value;if(!p1){toast("パスワードを入力してください",true);return;}if(p1!==p2){toast("パスワードが一致しません",true);return;}setPw(p1);document.getElementById("new-pw").value="";document.getElementById("new-pw2").value="";toast("パスワードを変更しました");}
+function clearSubs(){if(!confirm("全員の提出データをリセットしますか？"))return;S.submissions={};S.confirmed={};save();renderAdmin();toast("提出データをリセットしました");}
+function clearAll(){if(!confirm("全データをリセットしますか？"))return;S=defState();save();renderAdmin();toast("全データをリセットしました");}
+
+// ====== CSV ======
+function exportCSV(){
+  const rows=[["名前","メール","提出状況","出勤可能日数","出勤日","担当","提出日時","コメント"]];
+  S.staffList.forEach(st=>{const n=sName(st),em=sEmail(st),s=S.submissions[n];const days=(s?.days||[]).filter(d=>S.wantedDays.includes(d)).sort();const ar=[...new Set(Object.values(s?.dayData||{}).flatMap(d=>d.roles||[]))];rows.push([n,em,s?.submittedAt?"提出済":"未提出",days.length,days.join(" "),ar.join("・"),s?.submittedAt?new Date(s.submittedAt).toLocaleString("ja-JP"):"",s?.comment||""]);});
+  const csv="\uFEFF"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download=`シフト集計_${new Date().toLocaleDateString("ja-JP")}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);toast("CSVをダウンロードしました");
+}
+
+// ====== STAFF LOGIN ======
+function renderLoginSelect(){
+  const sel=document.getElementById("login-name");
+  if(!sel)return;
+  sel.innerHTML='<option value="">-- 名前を選んでください --</option>';
+  S.staffList.forEach(st=>{
+    const n=sName(st);
+    const opt=document.createElement("option");
+    opt.value=n;opt.textContent=n;sel.appendChild(opt);
+  });
+}
+
+function openAdminFromLogin(){
+  document.getElementById("staff-login-modal").classList.remove("show");
+  document.getElementById("auth-modal").classList.add("show");
+  setTimeout(()=>document.getElementById("auth-input").focus(),100);
+}
+
+function doStaffLogin(){
+  const name=document.getElementById("login-name").value;
+  const pw=document.getElementById("login-pw").value;
+  if(!name){document.getElementById("login-err").style.display="block";document.getElementById("login-err").textContent="名前を選んでください";return;}
+  const st=S.staffList.find(s=>sName(s)===name);
+  const stPw=typeof st==="object"?(st.password||"1234"):"1234";
+  if(pw!==stPw){document.getElementById("login-err").style.display="block";document.getElementById("login-err").textContent="パスワードが違います";return;}
+  // ログイン成功
+  currentStaff=name;
+  // 提出済みデータがあればdraftDataにロード、なければ空で初期化
+  const existingSub = S.submissions[name];
+  if(existingSub && existingSub.submittedAt){
+    draftData = {days:[...(existingSub.days||[])], dayData:{...(existingSub.dayData||{})}, comment:existingSub.comment||""};
+  } else {
+    draftData = {days:[], dayData:{}, comment:""};
+  }
+  localStorage.setItem("monju_staff_login", JSON.stringify({name, time:Date.now()}));
+  document.getElementById("staff-login-modal").classList.remove("show");
+  document.getElementById("login-display-name").textContent=name+"さん";
+  document.getElementById("staff-form").style.display="block";
+  refreshSV();
+}
+
+function staffLogout(){
+  draftData = {days:[], dayData:{}, comment:""};
+  currentStaff=null;
+  localStorage.removeItem("monju_staff_login");
+  document.getElementById("staff-form").style.display="none";
+  document.getElementById("day-panel").style.display="none";
+  document.getElementById("login-name").value="";
+  document.getElementById("login-pw").value="";
+  document.getElementById("login-err").style.display="none";
+  document.getElementById("staff-login-modal").classList.add("show");
+}
+
+function checkStaffSession(){
+  const saved=localStorage.getItem("monju_staff_login");
+  if(!saved)return false;
+  try{
+    const {name,time}=JSON.parse(saved);
+    // 24時間以内のセッションのみ有効
+    if(Date.now()-time>24*60*60*1000){localStorage.removeItem("monju_staff_login");return false;}
+    const st=S.staffList.find(s=>sName(s)===name);
+    if(!st)return false;
+    currentStaff=name;
+    const existingSub2 = S.submissions[name];
+    if(existingSub2 && existingSub2.submittedAt){
+      draftData = {days:[...(existingSub2.days||[])], dayData:{...(existingSub2.dayData||{})}, comment:existingSub2.comment||""};
+    } else {
+      draftData = {days:[], dayData:{}, comment:""};
+    }
+    document.getElementById("staff-login-modal").classList.remove("show");
+    document.getElementById("login-display-name").textContent=name+"さん";
+    document.getElementById("staff-form").style.display="block";
+    refreshSV();
+    return true;
+  }catch(e){return false;}
+}
+
+function toggleStaffSelect(ds, name) {
+  const chk = document.getElementById(`mc-chk-${ds}-${name}`);
+  const detail = document.getElementById(`mc-detail-${ds}-${name}`);
+  const card = document.getElementById(`mc-card-${ds}-${name}`);
+  if (chk.checked) {
+    detail.style.display = "block";
+    card.style.borderColor = "var(--accent)";
+  } else {
+    detail.style.display = "none";
+    card.style.borderColor = "var(--border)";
+    // チェックを外したら確定データから削除
+    if (S.confirmed[ds] && S.confirmed[ds][name]) {
+      delete S.confirmed[ds][name];
+    }
+  }
+}
+
+function isConfSt(ds,name){return !!(S.confirmed[ds]&&S.confirmed[ds][name]&&(S.confirmed[ds][name].roles?.length>0||S.confirmed[ds][name].from));}
+</script>
+</body>
+</html>
