@@ -33,6 +33,11 @@ main{padding:16px 18px 40px;max-width:1400px;margin:0 auto}
 .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px}
+table.grid4{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px}
+table.grid4 th{background:#f0f3fa;font-weight:600;font-size:13px;padding:6px;border:1px solid var(--line)}
+table.grid4 td{border:1px solid var(--line);padding:6px;vertical-align:top;height:52px}
+table.grid4 td.tm{background:#f8f9fc;font-size:12px;color:var(--muted);white-space:nowrap}
+table.grid4 .cell{margin-bottom:2px}table.grid4 .cell .cls{display:block}table.grid4 .sub{font-size:11px;color:var(--gold)}
 table.tt{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
 table.tt th{font-weight:500;color:var(--muted);font-size:12px;text-align:left;padding:4px 6px}
 table.tt td{border-top:1px solid var(--line);padding:7px 6px;vertical-align:top}
@@ -40,7 +45,9 @@ table.tt td{border-top:1px solid var(--line);padding:7px 6px;vertical-align:top}
 .note{background:var(--goldbg);color:var(--gold);border-radius:8px;padding:6px 10px;font-size:13px;margin-bottom:8px}
 form.add{display:none;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
 form.add.show{display:flex}
+form.add select{flex:0 0 96px}
 form.add input,form.add select{border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;flex:1 1 120px;min-width:0}
+.gtag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:6px;background:#eef2fe;color:#3d6ef5;margin-right:6px;font-weight:600}.gtag.job{background:#f3eefe;color:#7a4fd8}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--goldbg);color:var(--gold);margin-left:4px}
 #gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50}
 #gate .box{background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center}
@@ -84,7 +91,7 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 <div class="card redc"><h2>休み連絡 <button class="btn" onclick="toggleForm('absForm')">＋追加</button></h2>
 <div id="absList"></div>
 <form class="add" id="absForm" onsubmit="addAbs(event)">
-<input name="name" placeholder="生徒名（例：中2 山田）" required>
+<select name="grade" required><option value="">学年</option><option>小1</option><option>小2</option><option>小3</option><option>小4</option><option>小5</option><option>小6</option><option>中1</option><option>中2</option><option>中3</option><option>高1</option><option>高2</option><option>高3</option><option>アルバイト生</option></select><input name="name" placeholder="生徒名" required>
 <input name="lesson" placeholder="授業・時間（例：19:30個別）">
 <input name="reason" placeholder="理由（任意）">
 <input name="by" placeholder="受付者">
@@ -95,7 +102,7 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 <div class="card greenc"><h2>体験 <button class="btn" onclick="toggleForm('trialForm')">＋追加</button></h2>
 <div id="trialList"></div>
 <form class="add" id="trialForm" onsubmit="addTrial(event)">
-<input name="name" placeholder="生徒名・学年（例：中1 佐藤）" required>
+<select name="grade" required><option value="">学年</option><option>小1</option><option>小2</option><option>小3</option><option>小4</option><option>小5</option><option>小6</option><option>中1</option><option>中2</option><option>中3</option><option>高1</option><option>高2</option><option>高3</option><option>アルバイト生</option></select><input name="name" placeholder="名前" required>
 <input name="school" placeholder="学校">
 <input name="time" placeholder="時間（例：19:30〜）">
 <input name="subject" placeholder="科目・内容">
@@ -160,8 +167,8 @@ function render(){
   subs.forEach(f=>f());subs=[];
   const on=(path,cb)=>{const r=db.ref(path);const h=r.on("value",s=>cb(s.val()),e=>console.error(e));subs.push(()=>r.off("value",h));};
   on(`monju_v4/confirmed/${ds}`,renderStaff);
-  on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by)].filter(Boolean).map(esc).join("／")}</div>`));
-  on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
+  on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by)].filter(Boolean).map(esc).join("／")}</div>`));
+  on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
   loadTimetable();
 }
 
@@ -177,6 +184,7 @@ function renderList(elId,tileId,v,kind,fmt){
   document.getElementById(tileId).textContent=items.length+"名";
   document.getElementById(elId).innerHTML=items.length?items.map(([id,a])=>`<div class="row"><div>${fmt(a)}</div><button class="x" title="削除" onclick="delItem('${kind}','${id}')">✕</button></div>`).join(""):`<div class="empty">ありません</div>`;
 }
+function gradeTag(a){return a.grade?`<span class="gtag${a.grade==='アルバイト生'?' job':''}">${esc(a.grade)}</span>`:"";}
 function toggleForm(id){document.getElementById(id).classList.toggle("show");}
 function formData(e){const o={};new FormData(e.target).forEach((v,k)=>o[k]=String(v).trim());o.at=Date.now();return o;}
 async function addAbs(e){e.preventDefault();const o=formData(e);await db.ref(`monju_dash/absences/${ymd(cur)}`).push(o);e.target.reset();e.target.classList.remove("show");toast("休み連絡を登録しました");}
@@ -218,7 +226,7 @@ function parseDay(rows,dow){
         const nextIsTeacher=!TIME_RE.test(g(r+1,c0));
         for(let k=1;k<=4;k++){const cls=g(r,c0+k);if(!cls)continue;let tch=nextIsTeacher?g(r+1,c0+k):"";let time=t;
           if(TIME_RE.test(tch)&&tch.length<=13){time=tch;tch="";}
-          items.push({time,room:k+"教室",cls,tch});}
+          items.push({slot:t,time,room:k,cls,tch});}
       }
       return {items,notes};
     }
@@ -236,8 +244,10 @@ async function loadTimetable(){
     const its=res.items.filter(i=>!/^(面談)$/.test(i.cls));
     document.getElementById("tClass").textContent=its.length+"コマ";
     const notes=res.notes.length?`<div class="note">${res.notes.map(esc).join("　")}</div>`:"";
-    box.innerHTML=notes+(res.items.length?`<table class="tt"><colgroup><col style="width:24%"><col style="width:18%"><col></colgroup><tr><th>時間</th><th>教室</th><th>クラス／担当</th></tr>`+
-      res.items.map(i=>`<tr><td>${esc(i.time)}</td><td class="muted">${esc(i.room)}</td><td><span class="cls">${esc(i.cls)}</span> <span class="tch">${esc(i.tch)}</span></td></tr>`).join("")+`</table><div class="small muted" style="margin-top:6px">シート「${esc(sh.name.trim())}」から自動表示</div>`:`<div class="empty">この日の集団授業はありません</div>`);
+    const slots=[];res.items.forEach(i=>{if(!slots.includes(i.slot))slots.push(i.slot);});
+    const cell=(s,k)=>res.items.filter(i=>i.slot===s&&i.room===k).map(i=>`<div class="cell">${i.time!==s?`<span class="sub">${esc(i.time)}</span>`:""}<span class="cls">${esc(i.cls)}</span><span class="tch">${esc(i.tch)}</span></div>`).join("");
+    box.innerHTML=notes+(res.items.length?`<table class="grid4"><colgroup><col style="width:20%"><col><col><col><col></colgroup><tr><th>時間</th><th>1教室</th><th>2教室</th><th>3教室</th><th>4教室</th></tr>`+
+      slots.map(s=>`<tr><td class="tm">${esc(s)}</td>${[1,2,3,4].map(k=>`<td>${cell(s,k)}</td>`).join("")}</tr>`).join("")+`</table><div class="small muted" style="margin-top:6px">シート「${esc(sh.name.trim())}」から自動表示</div>`:`<div class="empty">この日の集団授業はありません</div>`);
   }catch(e){console.error(e);box.innerHTML=`<div class="empty">時間割の読み込みに失敗しました。</div>`;}
 }
 </script>
