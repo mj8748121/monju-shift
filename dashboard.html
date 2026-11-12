@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文殊ダッシュボード</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--line:#e3e7ef;--text:#1d2433;--muted:#6b7385;--blue:#3d6ef5;--red:#d93c3c;--redbg:#fdecec;--green:#1f9d63;--greenbg:#e6f6ee;--gold:#b7791f;--goldbg:#fdf3e1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;font-size:15px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.brand{font-weight:700;font-size:17px;color:var(--blue)}
+.datenav{display:flex;align-items:center;gap:8px}
+.datenav button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer}
+#dateLabel{font-size:20px;font-weight:700;min-width:150px;text-align:center}
+#clock{color:var(--muted);font-size:13px}
+main{padding:16px 18px 40px;max-width:1400px;margin:0 auto}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--card);border-radius:12px;padding:12px 16px;border:1px solid var(--line)}
+.tile .l{font-size:13px;color:var(--muted)}.tile .n{font-size:28px;font-weight:700}
+.tile.red{background:var(--redbg);border-color:#f5c6c6}.tile.red .n,.tile.red .l{color:var(--red)}
+.tile.green{background:var(--greenbg);border-color:#bfe6d2}.tile.green .n,.tile.green .l{color:var(--green)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:14px}
+.col{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card h2{font-size:16px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
+.card.redc{border-color:#f0b4b4}.card.redc h2{color:var(--red)}
+.card.greenc{border-color:#b5e0c9}.card.greenc h2{color:var(--green)}
+.row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.row:first-of-type{border-top:0}
+.muted{color:var(--muted)}.small{font-size:12px}
+.empty{color:var(--muted);font-size:13px;padding:4px 0}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px}
+table.tt{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
+table.tt th{font-weight:500;color:var(--muted);font-size:12px;text-align:left;padding:4px 6px}
+table.tt td{border-top:1px solid var(--line);padding:7px 6px;vertical-align:top}
+.cls{font-weight:600}.tch{color:var(--muted);font-size:12px}
+.note{background:var(--goldbg);color:var(--gold);border-radius:8px;padding:6px 10px;font-size:13px;margin-bottom:8px}
+form.add{display:none;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+form.add.show{display:flex}
+form.add input,form.add select{border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;flex:1 1 120px;min-width:0}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--goldbg);color:var(--gold);margin-left:4px}
+#gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50}
+#gate .box{background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center}
+#gate input{width:100%;padding:10px;border:1px solid #ccd;border-radius:8px;font-size:15px;margin:10px 0 4px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;display:none;z-index:60}
+@media (max-width:820px){.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}#dateLabel{font-size:17px;min-width:0}header{flex-wrap:wrap}main{padding:12px}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="box">
+<div style="font-size:18px;font-weight:700">文殊 スタッフ専用</div>
+<div class="muted small" style="margin-top:6px">共通パスワードを入力してください<br>（この端末では次回から入力不要です）</div>
+<input id="gate-pw" type="password" placeholder="共通パスワード" onkeydown="if(event.key==='Enter')gateLogin()">
+<div id="gate-err" style="color:var(--red);font-size:12px;min-height:18px"></div>
+<button class="btn primary" style="width:100%;padding:10px;font-size:15px" onclick="gateLogin()">入る</button>
+</div></div>
+
+<header>
+<div class="brand">文殊ダッシュボード</div>
+<div class="datenav">
+<button onclick="moveDay(-1)" aria-label="前の日">◀</button>
+<div id="dateLabel">—</div>
+<button onclick="moveDay(1)" aria-label="次の日">▶</button>
+<button onclick="goToday()">今日</button>
+</div>
+<div id="clock"></div>
+</header>
+
+<main>
+<div class="tiles">
+<div class="tile"><div class="l">出勤スタッフ</div><div class="n" id="tStaff">–</div></div>
+<div class="tile"><div class="l">集団授業</div><div class="n" id="tClass">–</div></div>
+<div class="tile red"><div class="l">休み連絡</div><div class="n" id="tAbs">–</div></div>
+<div class="tile green"><div class="l">体験</div><div class="n" id="tTrial">–</div></div>
+</div>
+
+<div class="grid">
+<div class="col">
+<div class="card"><h2>出勤スタッフ <a class="btn small" href="./" target="_blank">シフトアプリ</a></h2><div id="staffList"></div></div>
+
+<div class="card redc"><h2>休み連絡 <button class="btn" onclick="toggleForm('absForm')">＋追加</button></h2>
+<div id="absList"></div>
+<form class="add" id="absForm" onsubmit="addAbs(event)">
+<input name="name" placeholder="生徒名（例：中2 山田）" required>
+<input name="lesson" placeholder="授業・時間（例：19:30個別）">
+<input name="reason" placeholder="理由（任意）">
+<input name="by" placeholder="受付者">
+<select name="via"><option>Comiru</option><option>公式LINE</option><option>電話</option><option>その他</option></select>
+<button class="btn primary">登録</button>
+</form></div>
+
+<div class="card greenc"><h2>体験 <button class="btn" onclick="toggleForm('trialForm')">＋追加</button></h2>
+<div id="trialList"></div>
+<form class="add" id="trialForm" onsubmit="addTrial(event)">
+<input name="name" placeholder="生徒名・学年（例：中1 佐藤）" required>
+<input name="school" placeholder="学校">
+<input name="time" placeholder="時間（例：19:30〜）">
+<input name="subject" placeholder="科目・内容">
+<input name="memo" placeholder="メモ（保護者同伴など）">
+<button class="btn primary">登録</button>
+</form></div>
+</div>
+
+<div class="col">
+<div class="card"><h2>集団授業 <a class="btn small" id="sheetLink" target="_blank" href="https://docs.google.com/spreadsheets/d/13EQ_hRjnpaaDBtxd4L9E5OlUzbAcUFiXqcalVdUIJGU/edit">時間割シート</a></h2><div id="ttBox"><div class="empty">読み込み中…</div></div></div>
+<div class="card"><h2>個別指導</h2>
+<div class="muted small" style="margin-bottom:8px">個別指導の時間割・担当はKoBEToolで確認してください。</div>
+<a class="btn primary" href="https://kobetool.net/" target="_blank">KoBEToolを開く</a>
+</div>
+</div>
+</div>
+</main>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+const FIREBASE_CONFIG={apiKey:"AIzaSyAAsZD64KilFj5W3cutktACg2NUR0VdZCs",authDomain:"sift-sistem.firebaseapp.com",databaseURL:"https://sift-sistem-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"sift-sistem",storageBucket:"sift-sistem.firebasestorage.app",messagingSenderId:"468155536054",appId:"1:468155536054:web:723abf32b49cfc43598c17"};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db=firebase.database();
+const STAFF_EMAIL="staff@monju-juku.app";
+const SHEET_ID="13EQ_hRjnpaaDBtxd4L9E5OlUzbAcUFiXqcalVdUIJGU";
+const WD="日月火水木金土";
+
+let cur=new Date();cur.setHours(0,0,0,0);
+let subs=[];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",2200);}
+
+async function gateLogin(){
+  const pw=document.getElementById("gate-pw").value,er=document.getElementById("gate-err");er.textContent="";
+  if(!pw){er.textContent="パスワードを入力してください";return;}
+  try{await firebase.auth().signInWithEmailAndPassword(STAFF_EMAIL,pw);}catch(e){er.textContent="パスワードが違います";}
+}
+firebase.auth().onAuthStateChanged(u=>{
+  document.getElementById("gate").style.display=u?"none":"flex";
+  if(u)render();
+});
+
+function moveDay(n){cur.setDate(cur.getDate()+n);render();}
+function goToday(){cur=new Date();cur.setHours(0,0,0,0);render();}
+function tick(){
+  const n=new Date();
+  document.getElementById("clock").textContent=`${n.getHours()}:${String(n.getMinutes()).padStart(2,"0")} 更新`;
+  // 日付が変わったら自動で今日に
+  if(window._lastDay&&window._lastDay!==ymd(n)&&ymd(cur)===window._lastDay){goToday();}
+  window._lastDay=ymd(n);
+}
+setInterval(tick,30000);tick();
+setInterval(()=>{if(firebase.auth().currentUser)loadTimetable();},10*60*1000);
+
+function render(){
+  const ds=ymd(cur);
+  document.getElementById("dateLabel").textContent=`${cur.getMonth()+1}/${cur.getDate()}（${WD[cur.getDay()]}）`+(ds===ymd(new Date())?" 今日":"");
+  subs.forEach(f=>f());subs=[];
+  const on=(path,cb)=>{const r=db.ref(path);const h=r.on("value",s=>cb(s.val()),e=>console.error(e));subs.push(()=>r.off("value",h));};
+  on(`monju_v4/confirmed/${ds}`,renderStaff);
+  on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by)].filter(Boolean).map(esc).join("／")}</div>`));
+  on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
+  loadTimetable();
+}
+
+function renderStaff(v){
+  const el=document.getElementById("staffList");
+  const list=Object.entries(v||{}).filter(([,c])=>c&&(c.from||c.roles)).sort((a,b)=>(a[1].from||"").localeCompare(b[1].from||""));
+  document.getElementById("tStaff").textContent=list.length+"名";
+  el.innerHTML=list.length?list.map(([n,c])=>`<div class="row"><span><b>${esc(n)}</b>${c.note==="固定シフト"?'<span class="badge">固定</span>':""}</span><span class="muted">${esc(c.from||"")}〜${esc(c.to||"")}</span></div>`).join(""):`<div class="empty">確定した出勤スタッフはいません</div>`;
+}
+
+function renderList(elId,tileId,v,kind,fmt){
+  const items=Object.entries(v||{}).sort((a,b)=>(a[1].at||0)-(b[1].at||0));
+  document.getElementById(tileId).textContent=items.length+"名";
+  document.getElementById(elId).innerHTML=items.length?items.map(([id,a])=>`<div class="row"><div>${fmt(a)}</div><button class="x" title="削除" onclick="delItem('${kind}','${id}')">✕</button></div>`).join(""):`<div class="empty">ありません</div>`;
+}
+function toggleForm(id){document.getElementById(id).classList.toggle("show");}
+function formData(e){const o={};new FormData(e.target).forEach((v,k)=>o[k]=String(v).trim());o.at=Date.now();return o;}
+async function addAbs(e){e.preventDefault();const o=formData(e);await db.ref(`monju_dash/absences/${ymd(cur)}`).push(o);e.target.reset();e.target.classList.remove("show");toast("休み連絡を登録しました");}
+async function addTrial(e){e.preventDefault();const o=formData(e);await db.ref(`monju_dash/trials/${ymd(cur)}`).push(o);e.target.reset();e.target.classList.remove("show");toast("体験を登録しました");}
+async function delItem(kind,id){if(!confirm("削除しますか？"))return;await db.ref(`monju_dash/${kind}/${ymd(cur)}/${id}`).remove();toast("削除しました");}
+
+// ===== 集団授業（時間割シートの読み取り） =====
+function parseCSV(t){const rows=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++;}else q=false;}else f+=c;}else if(c=='"')q=true;else if(c==","){row.push(f);f="";}else if(c=="\n"){row.push(f);rows.push(row);row=[];f="";}else if(c!="\r")f+=c;}if(f||row.length){row.push(f);rows.push(row);}return rows;}
+const gviz=n=>`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(n)}`;
+const ttCache={};
+async function fetchSheet(name){const r=await fetch(gviz(name),{credentials:"omit"});return r.text();}
+async function findWeekSheet(monday){
+  const key=ymd(monday);if(ttCache[key]!==undefined)return ttCache[key];
+  const base=`${monday.getMonth()+1}月${monday.getDate()}日`;
+  const fallback=await fetchSheet("__no_such_sheet__");
+  for(const n of [base,base+" ",base+"から",base+"の週",`時間割（${base}の週）`]){
+    const t=await fetchSheet(n);if(t!==fallback){ttCache[key]={name:n,rows:parseCSV(t)};return ttCache[key];}
+  }
+  ttCache[key]=null;return null;
+}
+const TIME_RE=/\d{1,2}\s*[:：]\s*\d{2}/;
+function parseDay(rows,dow){
+  const g=(r,c)=>((rows[r]||[])[c]||"").trim();
+  const order=[[1,3,5],[2,4,6,0]];const blocks=[];
+  rows.forEach((row,r)=>{const cols=[];row.forEach((v,c)=>{if(v.trim()==="1教室")cols.push(c-1);});if(cols.length)blocks.push({r,cols});});
+  for(let b=0;b<blocks.length;b++){
+    const {r:hr,cols}=blocks[b];
+    for(let gi=0;gi<cols.length;gi++){
+      const c0=cols[gi];let day=null,notes=[];
+      for(let r=Math.max(0,hr-5);r<=hr+2;r++){for(let c=c0;c<=c0+4;c++){const v=g(r,c);if(!v||r===hr)continue;
+        if(/^[月火水木金土日]$/.test(v))day=WD.indexOf(v);
+        else if(c===c0&&!/^\d{4}年/.test(v)&&!/^(確定|未定)$/.test(v)&&!/教室/.test(v)&&!TIME_RE.test(v))notes.push(v);}}
+      if(day===null)day=(order[b]||[])[gi];
+      if(day!==dow)continue;
+      const end=(blocks[b+1]||{r:rows.length}).r;const items=[];
+      for(let r=hr+1;r<end;r++){
+        if(/帰宅/.test(g(r,c0)))break;
+        const t=g(r,c0);if(!TIME_RE.test(t))continue;
+        const nextIsTeacher=!TIME_RE.test(g(r+1,c0));
+        for(let k=1;k<=4;k++){const cls=g(r,c0+k);if(!cls)continue;let tch=nextIsTeacher?g(r+1,c0+k):"";let time=t;
+          if(TIME_RE.test(tch)&&tch.length<=13){time=tch;tch="";}
+          items.push({time,room:k+"教室",cls,tch});}
+      }
+      return {items,notes};
+    }
+  }
+  return blocks.length?{items:[],notes:[]}:null;
+}
+async function loadTimetable(){
+  const box=document.getElementById("ttBox"),d=new Date(cur);
+  const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));
+  try{
+    const sh=await findWeekSheet(mon);
+    if(!sh){box.innerHTML=`<div class="empty">${mon.getMonth()+1}月${mon.getDate()}日の週の時間割シートが見つかりません。<br>右上の「時間割シート」から確認してください。</div>`;document.getElementById("tClass").textContent="–";return;}
+    const res=parseDay(sh.rows,d.getDay());
+    if(!res){box.innerHTML=`<div class="empty">この日の時間割を読み取れませんでした（シート「${esc(sh.name.trim())}」）。右上の「時間割シート」から確認してください。</div>`;document.getElementById("tClass").textContent="–";return;}
+    const its=res.items.filter(i=>!/^(面談)$/.test(i.cls));
+    document.getElementById("tClass").textContent=its.length+"コマ";
+    const notes=res.notes.length?`<div class="note">${res.notes.map(esc).join("　")}</div>`:"";
+    box.innerHTML=notes+(res.items.length?`<table class="tt"><colgroup><col style="width:24%"><col style="width:18%"><col></colgroup><tr><th>時間</th><th>教室</th><th>クラス／担当</th></tr>`+
+      res.items.map(i=>`<tr><td>${esc(i.time)}</td><td class="muted">${esc(i.room)}</td><td><span class="cls">${esc(i.cls)}</span> <span class="tch">${esc(i.tch)}</span></td></tr>`).join("")+`</table><div class="small muted" style="margin-top:6px">シート「${esc(sh.name.trim())}」から自動表示</div>`:`<div class="empty">この日の集団授業はありません</div>`);
+  }catch(e){console.error(e);box.innerHTML=`<div class="empty">時間割の読み込みに失敗しました。</div>`;}
+}
+</script>
+</body>
+</html>
