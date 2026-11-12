@@ -107,6 +107,14 @@ textarea{resize:vertical;min-height:64px;}
 </head>
 <body>
 
+<div id="gate" style="position:fixed;inset:0;background:#f4f6fb;display:none;align-items:center;justify-content:center;z-index:9999">
+<div style="background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center">
+<div style="font-size:18px;font-weight:700;margin-bottom:6px">文殊 スタッフ専用</div>
+<div style="font-size:13px;color:#667;margin-bottom:16px">共通パスワードを入力してください<br>（この端末では次回から入力不要です）</div>
+<input id="gate-pw" type="password" placeholder="共通パスワード" style="width:100%;padding:10px;border:1px solid #ccd;border-radius:8px;font-size:15px;box-sizing:border-box" onkeydown="if(event.key==='Enter')gateLogin()">
+<div id="gate-err" style="color:#d33;font-size:12px;min-height:18px;margin-top:6px"></div>
+<button onclick="gateLogin()" style="width:100%;padding:10px;border:0;border-radius:8px;background:#4a7cf7;color:#fff;font-size:15px;font-weight:600;cursor:pointer">入る</button>
+</div></div>
 <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:14px">Firebaseに接続中...</div></div>
 
 <!-- AUTH MODAL -->
@@ -349,6 +357,7 @@ textarea{resize:vertical;min-height:64px;}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 const FIREBASE_CONFIG={apiKey:"AIzaSyAAsZD64KilFj5W3cutktACg2NUR0VdZCs",authDomain:"sift-sistem.firebaseapp.com",databaseURL:"https://sift-sistem-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"sift-sistem",storageBucket:"sift-sistem.firebasestorage.app",messagingSenderId:"468155536054",appId:"1:468155536054:web:723abf32b49cfc43598c17"};
@@ -368,13 +377,29 @@ const NOW=new Date();
 let sY=NOW.getFullYear(),sM=NOW.getMonth(),aY=NOW.getFullYear(),aM=NOW.getMonth();
 
 let inited=false;
+const STAFF_EMAIL="staff@monju-juku.app";
+async function gateLogin(){
+  const pw=document.getElementById("gate-pw").value;
+  const er=document.getElementById("gate-err");er.textContent="";
+  if(!pw){er.textContent="パスワードを入力してください";return;}
+  try{await firebase.auth().signInWithEmailAndPassword(STAFF_EMAIL,pw);}
+  catch(e){er.textContent="パスワードが違います";}
+}
+let dbStarted=false;
+firebase.auth().onAuthStateChanged(u=>{
+  if(!u){document.getElementById("loading").style.display="none";document.getElementById("gate").style.display="flex";return;}
+  document.getElementById("gate").style.display="none";
+  if(!inited)document.getElementById("loading").style.display="flex";
+  if(!dbStarted){dbStarted=true;startDb();}
+});
+function startDb(){
 db.ref(ROOT).on("value",snap=>{
   const d=snap.val();
   if(d){
     S={adminPassword:d.adminPassword||"monju2024",staffList:d.staffList||defState().staffList,roles:d.roles||defState().roles,wantedDays:d.wantedDays||[],dayMeta:d.dayMeta||{},submissions:d.submissions||{},confirmed:d.confirmed||{}};
     // draftDataはFirebaseと独立して管理するので上書きしない
   }
-  else{S=defState();save();}
+  else{console.warn("no data");}
   if(!inited){
     inited=true;document.getElementById("loading").style.display="none";
     renderLoginSelect();
@@ -387,6 +412,7 @@ db.ref(ROOT).on("value",snap=>{
     if(currentStaff)refreshSV();if(adminAuthed)renderCurAtab();
   }
 });
+}
 
 function save(){// undefined を除去してからFirebaseに保存
   const cleanConfirmed = {};
