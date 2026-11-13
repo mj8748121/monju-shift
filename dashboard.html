@@ -49,6 +49,8 @@ form.add select{flex:0 0 96px}
 form.add input,form.add select{border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;flex:1 1 120px;min-width:0}
 .gtag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:6px;background:#eef2fe;color:#3d6ef5;margin-right:6px;font-weight:600}.gtag.job{background:#f3eefe;color:#7a4fd8}
 .pksum{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}.pksum span{font-size:13px;padding:3px 10px;border-radius:8px;background:#f0f3fa}.pksum .free{background:var(--greenbg);color:var(--green);font-weight:600}.pksum .off{background:#eee;color:#777}
+.kbdrop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:8px}.kbdrop:focus{outline:none;border-color:var(--blue);background:#f3f6ff}
+#kbView img{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--goldbg);color:var(--gold);margin-left:4px}
 #gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50}
 #gate .box{background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center}
@@ -117,9 +119,10 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 
 <div class="col">
 <div class="card"><h2>集団授業 <a class="btn small" id="sheetLink" target="_blank" href="https://docs.google.com/spreadsheets/d/13EQ_hRjnpaaDBtxd4L9E5OlUzbAcUFiXqcalVdUIJGU/edit">時間割シート</a></h2><div id="ttBox"><div class="empty">読み込み中…</div></div></div>
-<div class="card"><h2>個別指導</h2>
-<div class="muted small" style="margin-bottom:8px">個別指導の時間割・担当はKoBEToolで確認してください。</div>
-<a class="btn primary" href="https://kobetool.net/" target="_blank">KoBEToolを開く</a>
+<div class="card"><h2>個別指導 <span><a class="btn small" href="https://kobetool.net/" target="_blank">KoBETool</a> <button class="btn small" onclick="document.getElementById('kbFile').click()">画像を選ぶ</button></span></h2>
+<div id="kbDrop" class="kbdrop" tabindex="0">ここをクリックしてから <b>Ctrl+V</b>（Macは⌘+V）でKoBEToolの画面を貼り付け<br><span class="small muted">スマホは「画像を選ぶ」から写真・スクショを選択</span></div>
+<input type="file" id="kbFile" accept="image/*" style="display:none" onchange="kbUpload(this.files[0]);this.value=''">
+<div id="kbView"></div>
 </div>
 </div>
 </div>
@@ -173,6 +176,7 @@ function render(){
   on(`monju_v4/confirmed/${ds}`,renderStaff);
   on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by)].filter(Boolean).map(esc).join("／")}</div>`));
   on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
+  on(`monju_dash/kobetsu/${ds}`,renderKobetsu);
   loadTimetable();
   loadParking();
 }
@@ -217,6 +221,29 @@ async function loadParking(){
   }catch(e){console.error(e);box.innerHTML=`<div class="empty">駐車場の読み込みに失敗しました。</div>`;}
 }
 setInterval(()=>{if(firebase.auth().currentUser)loadParking();},2*60*1000);
+
+
+// ===== 個別指導（KoBEToolの画像を日付ごとに保存） =====
+function kbCompress(file){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const w=Math.min(1400,img.width),h=Math.round(img.height*w/img.width);const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);res(c.toDataURL("image/jpeg",0.8));URL.revokeObjectURL(img.src);};img.onerror=rej;img.src=URL.createObjectURL(file);});}
+async function kbUpload(file){
+  if(!file||!file.type.startsWith("image/")){toast("画像ファイルを選んでください");return;}
+  toast("アップロード中…");
+  try{const data=await kbCompress(file);await db.ref(`monju_dash/kobetsu/${ymd(cur)}`).set({img:data,at:Date.now()});toast(`${cur.getMonth()+1}/${cur.getDate()} の個別指導を登録しました`);}
+  catch(e){console.error(e);toast("登録に失敗しました");}
+}
+async function kbDelete(){if(!confirm("この日の個別指導の画像を削除しますか？"))return;await db.ref(`monju_dash/kobetsu/${ymd(cur)}`).remove();toast("削除しました");}
+function renderKobetsu(v){
+  const el=document.getElementById("kbView");
+  if(!v||!v.img){el.innerHTML=`<div class="empty">この日の個別指導の画像はまだありません</div>`;return;}
+  const t=new Date(v.at);
+  el.innerHTML=`<img src="${v.img}" alt="個別指導の時間割"><div class="small muted" style="margin-top:4px;display:flex;justify-content:space-between"><span>${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,"0")} 登録（貼り直すと上書き）</span><button class="x" onclick="kbDelete()">削除</button></div>`;
+}
+document.addEventListener("paste",e=>{
+  const item=[...(e.clipboardData||{}).items||[]].find(i=>i.type.startsWith("image/"));
+  if(!item)return;
+  const tag=(document.activeElement||{}).tagName;if(tag==="INPUT"||tag==="TEXTAREA")return;
+  e.preventDefault();kbUpload(item.getAsFile());
+});
 
 // ===== 集団授業（時間割シートの読み取り） =====
 function parseCSV(t){const rows=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++;}else q=false;}else f+=c;}else if(c=='"')q=true;else if(c==","){row.push(f);f="";}else if(c=="\n"){row.push(f);rows.push(row);row=[];f="";}else if(c!="\r")f+=c;}if(f||row.length){row.push(f);rows.push(row);}return rows;}
