@@ -48,6 +48,7 @@ form.add.show{display:flex}
 form.add select{flex:0 0 96px}
 form.add input,form.add select{border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;flex:1 1 120px;min-width:0}
 .gtag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:6px;background:#eef2fe;color:#3d6ef5;margin-right:6px;font-weight:600}.gtag.job{background:#f3eefe;color:#7a4fd8}
+.pksum{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}.pksum span{font-size:13px;padding:3px 10px;border-radius:8px;background:#f0f3fa}.pksum .free{background:var(--greenbg);color:var(--green);font-weight:600}.pksum .off{background:#eee;color:#777}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--goldbg);color:var(--gold);margin-left:4px}
 #gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50}
 #gate .box{background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center}
@@ -87,6 +88,9 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 <div class="grid">
 <div class="col">
 <div class="card"><h2>出勤スタッフ <a class="btn small" href="./" target="_blank">シフトアプリ</a></h2><div id="staffList"></div></div>
+
+<div class="card"><h2>駐車場 <a class="btn small" href="https://mj8748121.github.io/parking-system/" target="_blank">駐車場アプリ</a></h2>
+<div id="pkSum" class="pksum"></div><div id="pkList"><div class="empty">読み込み中…</div></div></div>
 
 <div class="card redc"><h2>休み連絡 <button class="btn" onclick="toggleForm('absForm')">＋追加</button></h2>
 <div id="absList"></div>
@@ -170,6 +174,7 @@ function render(){
   on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by)].filter(Boolean).map(esc).join("／")}</div>`));
   on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
   loadTimetable();
+  loadParking();
 }
 
 function renderStaff(v){
@@ -190,6 +195,28 @@ function formData(e){const o={};new FormData(e.target).forEach((v,k)=>o[k]=Strin
 async function addAbs(e){e.preventDefault();const o=formData(e);await db.ref(`monju_dash/absences/${ymd(cur)}`).push(o);e.target.reset();e.target.classList.remove("show");toast("休み連絡を登録しました");}
 async function addTrial(e){e.preventDefault();const o=formData(e);await db.ref(`monju_dash/trials/${ymd(cur)}`).push(o);e.target.reset();e.target.classList.remove("show");toast("体験を登録しました");}
 async function delItem(kind,id){if(!confirm("削除しますか？"))return;await db.ref(`monju_dash/${kind}/${ymd(cur)}/${id}`).remove();toast("削除しました");}
+
+
+// ===== 駐車場（parking-system の予約を読み取り） =====
+const PK_KEY="AIzaSyATFbLulgjdiNNmxTXXqXog7MeSaSCo75I";
+const PK_URL=`https://firestore.googleapis.com/v1/projects/parking-system-349a3/databases/(default)/documents`;
+const SPOTS=[[1,"①","文殊1階"],[2,"②","文殊1階"],[3,"③","文殊1階"],[4,"④","文殊1階"],[5,"⑤","文殊1階"],[6,"⑥","地下403"],[7,"⑦","地下505"],[8,"⑧","離れ4番"],[9,"⑨","文殊向かい"],[10,"⑩","かぎかっこ"],[11,"⑪","かぎかっこ"],[12,"⑫","かぎかっこ"],[13,"⑬","かぎかっこ"],[14,"⑬","かぎかっこ離れ"]];
+const fsVal=v=>v?Object.values(v)[0]:"";
+async function loadParking(){
+  const box=document.getElementById("pkList"),sum=document.getElementById("pkSum"),ds=ymd(cur);
+  try{
+    const q=await fetch(`${PK_URL}:runQuery?key=${PK_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({structuredQuery:{from:[{collectionId:"bookings"}],where:{fieldFilter:{field:{fieldPath:"date"},op:"EQUAL",value:{stringValue:ds}}}}})}).then(r=>r.json());
+    const bk=q.filter(x=>x.document).map(x=>{const f=x.document.fields;return{spot:Number(fsVal(f.spotId)),user:fsVal(f.userName),s:fsVal(f.startTime),e:fsVal(f.endTime)};}).sort((a,b)=>a.spot-b.spot||a.s.localeCompare(b.s));
+    const dis=await fetch(`${PK_URL}/disabledSpots?key=${PK_KEY}&pageSize=100`).then(r=>r.json());
+    const off=new Set((dis.documents||[]).map(d=>Number(fsVal(d.fields.spotId))));
+    const used=new Set(bk.map(b=>b.spot));
+    const free=SPOTS.filter(s=>!off.has(s[0])&&!used.has(s[0])).length;
+    sum.innerHTML=`<span class="free">空き ${free}台</span><span>予約 ${used.size}台</span><span class="off">使用不可 ${off.size}台</span>`;
+    const name=id=>{const s=SPOTS.find(x=>x[0]===id);return s?`${s[1]} ${s[2]}`:`#${id}`;};
+    box.innerHTML=bk.length?bk.map(b=>`<div class="row"><span><b>${esc(name(b.spot))}</b> ${esc(b.user)}</span><span class="muted">${esc(b.s)}〜${esc(b.e)}</span></div>`).join(""):`<div class="empty">この日の予約はありません</div>`;
+  }catch(e){console.error(e);box.innerHTML=`<div class="empty">駐車場の読み込みに失敗しました。</div>`;}
+}
+setInterval(()=>{if(firebase.auth().currentUser)loadParking();},2*60*1000);
 
 // ===== 集団授業（時間割シートの読み取り） =====
 function parseCSV(t){const rows=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++;}else q=false;}else f+=c;}else if(c=='"')q=true;else if(c==","){row.push(f);f="";}else if(c=="\n"){row.push(f);rows.push(row);row=[];f="";}else if(c!="\r")f+=c;}if(f||row.length){row.push(f);rows.push(row);}return rows;}
