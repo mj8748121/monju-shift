@@ -174,7 +174,7 @@ function render(){
   subs.forEach(f=>f());subs=[];
   const on=(path,cb)=>{const r=db.ref(path);const h=r.on("value",s=>cb(s.val()),e=>console.error(e));subs.push(()=>r.off("value",h));};
   on(`monju_v4/confirmed/${ds}`,renderStaff);
-  on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by)].filter(Boolean).map(esc).join("／")}</div>`));
+  on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by),a.auto&&a.at&&("受信 "+new Date(a.at).getHours()+":"+String(new Date(a.at).getMinutes()).padStart(2,"0"))].filter(Boolean).map(esc).join("／")}${a.url&&/^https:\/\/comiru\.jp\//.test(a.url)?` <a href="${esc(a.url)}" target="_blank">Comiruで詳細</a>`:""}</div>`));
   on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
   on(`monju_dash/kobetsu/${ds}`,renderKobetsu);
   loadTimetable();
