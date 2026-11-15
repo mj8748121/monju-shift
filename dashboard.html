@@ -30,7 +30,7 @@ main{padding:16px 18px 40px;max-width:1400px;margin:0 auto}
 .row:first-of-type{border-top:0}
 .muted{color:var(--muted)}.small{font-size:12px}
 .empty{color:var(--muted);font-size:13px;padding:4px 0}
-.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block;white-space:nowrap}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px}
 table.grid4{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px}
@@ -56,6 +56,19 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 #gate .box{background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center}
 #gate input{width:100%;padding:10px;border:1px solid #ccd;border-radius:8px;font-size:15px;margin:10px 0 4px}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;display:none;z-index:60}
+.tksum{display:flex;align-items:center;gap:10px;margin-bottom:10px}.tksum .big{font-size:22px;font-weight:700}.tksum small{font-size:13px;color:var(--muted);font-weight:400}
+.tkbar{flex:1;max-width:360px;height:8px;background:#eef1f6;border-radius:4px;overflow:hidden}.tkbar i{display:block;height:100%;background:var(--blue)}
+.tkwrap{overflow-x:auto}
+table.tk{width:100%;border-collapse:collapse;min-width:640px;font-size:13px}
+table.tk th{background:#f0f3fa;font-weight:600;padding:6px;border:1px solid var(--line)}
+table.tk td{border:1px solid var(--line);padding:6px 8px;vertical-align:top}
+table.tk td.lab{white-space:nowrap;background:#fafbfd}
+table.tk .cnt{font-size:18px;font-weight:700}table.tk .cnt small{font-size:12px;color:var(--muted);font-weight:400}
+table.tk .mini{height:4px;background:#eef1f6;border-radius:2px;margin:3px 0 5px;overflow:hidden}table.tk .mini i{display:block;height:100%;background:var(--gold)}
+table.tk td.ok{background:#f5fbf8}table.tk td.ok .mini i{background:var(--green)}table.tk td.z .cnt{color:#aab}
+.chips{display:flex;gap:3px;flex-wrap:wrap}.chips span{font-size:11px;padding:0 5px;border-radius:5px;background:#f0f1f4;color:#99a}.chips .on{background:var(--greenbg);color:var(--green)}.chips .half{background:var(--goldbg);color:var(--gold)}
+table.tk tr.tkmiss td{background:#fffdf7}.mi{display:inline-block;margin:2px 12px 2px 0;font-size:13px}.mi small{margin-left:4px;color:var(--red);font-size:11px}
+.ok-t{color:var(--green);font-size:12px}
 @media (max-width:820px){.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}#dateLabel{font-size:17px;min-width:0}header{flex-wrap:wrap}main{padding:12px}}
 </style>
 </head>
@@ -126,6 +139,9 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 </div>
 </div>
 </div>
+
+<div class="card" style="margin-top:14px"><h2><span>定期テスト回収状況 <span class="small muted" id="tkMeta" style="font-weight:400"></span></span> <a class="btn small" target="_blank" href="https://docs.google.com/spreadsheets/d/1_tcmbASqGguPBmyfuRHSU6VDd5CeF42khuPQ_tbGSVk/edit">回収表</a></h2>
+<div id="tkBox"><div class="empty">読み込み中…</div></div></div>
 </main>
 <div id="toast"></div>
 
@@ -153,7 +169,7 @@ async function gateLogin(){
 }
 firebase.auth().onAuthStateChanged(u=>{
   document.getElementById("gate").style.display=u?"none":"flex";
-  if(u)render();
+  if(u){render();watchTeiki();}
 });
 
 function moveDay(n){cur.setDate(cur.getDate()+n);render();}
@@ -200,6 +216,35 @@ async function addAbs(e){e.preventDefault();const o=formData(e);await db.ref(`mo
 async function addTrial(e){e.preventDefault();const o=formData(e);await db.ref(`monju_dash/trials/${ymd(cur)}`).push(o);e.target.reset();e.target.classList.remove("show");toast("体験を登録しました");}
 async function delItem(kind,id){if(!confirm("削除しますか？"))return;await db.ref(`monju_dash/${kind}/${ymd(cur)}/${id}`).remove();toast("削除しました");}
 
+
+// ===== 定期テスト回収状況（定期テスト回収表 → Apps Script → Firebase） =====
+const TK_S=["国語","数学","英語","理科","社会"],TK_A={"国語":"国","数学":"数","英語":"英","理科":"理","社会":"社"};
+let tkOn=false;const tkOpen=new Set();
+function watchTeiki(){if(tkOn)return;tkOn=true;db.ref("monju_dash/teiki").on("value",s=>renderTeiki(s.val()),e=>{console.error(e);tkOn=false;});}
+function renderTeiki(v){
+  const box=document.getElementById("tkBox"),meta=document.getElementById("tkMeta");
+  if(!v||!v.rows){meta.textContent="";box.innerHTML=`<div class="empty">まだデータがありません（回収表から30分ごとに自動で取り込みます）</div>`;return;}
+  const u=new Date(v.updated);
+  meta.textContent=`${v.label||v.test}・${u.getMonth()+1}/${u.getDate()} ${u.getHours()}:${String(u.getMinutes()).padStart(2,"0")} 時点`;
+  const pct=v.target?Math.round(v.collected/v.target*100):0;
+  const rows=v.rows.filter(r=>r.enrolled>0).sort((a,b)=>(a.school===b.school?0:a.school==="仲西"?-1:1)||a.grade-b.grade);
+  let h=`<div class="tksum"><span class="big">${v.collected}<small> / ${v.target}枚</small></span><span class="tkbar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
+  h+=`<div class="tkwrap"><table class="tk"><tr><th>学年</th>${TK_S.map(s=>`<th>${s}</th>`).join("")}<th>未回収</th></tr>`;
+  rows.forEach(r=>{
+    const k=r.school+r.grade,miss=r.missing||[];
+    h+=`<tr><td class="lab"><b>${esc(r.school)}${r.grade}年</b><div class="small muted">${r.enrolled}人</div></td>`;
+    TK_S.forEach(s=>{
+      const x=(r.subj||{})[s]||{},p=r.enrolled?x.got/r.enrolled:0,cls=!x.got?"z":p>=0.8?"ok":"";
+      const done=x.bu==="完成"||(!x.bu&&x.mondai),q=x.bu==="完成"?"問 完成":x.bu?"問 "+x.bu.replace("部",""):x.mondai?"問 ✓":"問 –";
+      h+=`<td class="${cls}"><div class="cnt">${x.got||0}<small>/${r.enrolled}</small></div><div class="mini"><i style="width:${Math.round(p*100)}%"></i></div><div class="chips"><span class="${done?"on":x.bu?"half":""}">${esc(q)}</span><span class="${x.kaitou?"on":""}">模範${x.kaitou?"✓":"–"}</span><span class="${x.hakushi?"on":""}">白紙${x.hakushi?"✓":"–"}</span></div></td>`;
+    });
+    h+=`<td class="lab">${miss.length?`<button class="btn small" onclick="tkToggle('${k}')">${miss.length}人 ${tkOpen.has(k)?"▴":"▾"}</button>`:`<span class="ok-t">全員済</span>`}</td></tr>`;
+    if(miss.length&&tkOpen.has(k))h+=`<tr class="tkmiss"><td colspan="7">${miss.map(m=>`<span class="mi">${esc(m.n)}<small>${(m.m||[]).map(s=>esc(TK_A[s]||s)).join("")}</small></span>`).join("")}</td></tr>`;
+  });
+  h+=`</table></div><div class="small muted" style="margin-top:6px">数字は「回収した答案／在籍数」。問＝問題用紙（3部で完成）、模範＝模範解答、白紙＝白紙の解答用紙。未回収のボタンで、生徒名と未提出の教科が出ます。</div>`;
+  box.innerHTML=h;window._tk=v;
+}
+function tkToggle(k){tkOpen.has(k)?tkOpen.delete(k):tkOpen.add(k);renderTeiki(window._tk);}
 
 // ===== 駐車場（parking-system の予約を読み取り） =====
 const PK_KEY="AIzaSyATFbLulgjdiNNmxTXXqXog7MeSaSCo75I";
