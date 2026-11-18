@@ -35,7 +35,7 @@ function syncComiruAbsences() {
 
 // 最初に1回だけ実行：5分ごとの自動実行を設定
 function setup() {
-  ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'syncComiruAbsences') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('syncComiruAbsences').timeBased().everyMinutes(5).create();
   syncComiruAbsences();
 }

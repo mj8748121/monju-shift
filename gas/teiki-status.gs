@@ -1,7 +1,7 @@
 // 文殊ダッシュボード連携：「定期テスト回収表」→ ダッシュボードの「定期テスト回収状況」
 // 30分ごとに回収表を読み、学校×学年×教科の回収状況と未回収の生徒をダッシュボード（Firebase）に書き込みます。
 // 最新のテストは「生徒別回収_YYYY年M月」タブの名前から自動で選びます（次のテストのタブを作れば自動で切り替わります）。
-const DB_URL = 'https://sift-sistem-default-rtdb.asia-southeast1.firebasedatabase.app';
+// DB_URL は同じプロジェクトの「コード.gs」で定義済み
 const SS_ID = '1_tcmbASqGguPBmyfuRHSU6VDd5CeF42khuPQ_tbGSVk';
 const SUBJ = ['国語', '数学', '英語', '理科', '社会'];
 
@@ -70,9 +70,9 @@ function syncTeikiStatus() {
   console.log(test + '：' + collected + '/' + target + ' を書き込みました');
 }
 
-// 最初に1回だけ実行：30分ごとの自動実行を設定
-function setup() {
-  ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
+// 最初に1回だけ実行：30分ごとの自動実行を設定（Comiru欠席の自動実行には触れません）
+function setupTeiki() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'syncTeikiStatus') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('syncTeikiStatus').timeBased().everyMinutes(30).create();
   syncTeikiStatus();
 }
