@@ -51,6 +51,14 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 .pksum{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}.pksum span{font-size:13px;padding:3px 10px;border-radius:8px;background:#f0f3fa}.pksum .free{background:var(--greenbg);color:var(--green);font-weight:600}.pksum .off{background:#eee;color:#777}
 .kbdrop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:8px}.kbdrop:focus{outline:none;border-color:var(--blue);background:#f3f6ff}
 #kbView img{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+.ls{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}.ls.late{border-color:#f0b4b4;background:#fffafa}
+.ls .hd{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}.ls .hd b{font-size:15px}
+.st{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}.st.g{background:var(--greenbg);color:var(--green)}.st.r{background:var(--redbg);color:var(--red)}.st.n{background:#f0f3fa;color:var(--muted)}.st.b{background:#eef2fe;color:var(--blue)}
+.ls .prev{background:var(--goldbg);color:#7a5a12;border-radius:8px;padding:5px 9px;font-size:13px;margin:6px 0}
+.ls dl{display:grid;grid-template-columns:72px 1fr;gap:3px 8px;margin:6px 0 0;font-size:14px}.ls dt{color:var(--muted);font-size:12px;padding-top:2px}.ls dd{margin:0;white-space:pre-wrap}
+.ls form{display:none;margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}.ls form.show{display:block}
+.ls label{display:block;font-size:12px;color:var(--muted);margin:6px 0 2px}.ls textarea,.ls input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit}
+.ls textarea{min-height:44px;resize:vertical}.ls .lock{font-size:11px;color:var(--red)}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--goldbg);color:var(--gold);margin-left:4px}
 #gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50}
 #gate .box{background:#fff;border-radius:14px;padding:28px 26px;width:min(340px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center}
@@ -132,6 +140,7 @@ table.tk tr.tkmiss td{background:#fffdf7}.mi{display:inline-block;margin:2px 12p
 
 <div class="col">
 <div class="card"><h2>集団授業 <a class="btn small" id="sheetLink" target="_blank" href="https://docs.google.com/spreadsheets/d/13EQ_hRjnpaaDBtxd4L9E5OlUzbAcUFiXqcalVdUIJGU/edit">時間割シート</a></h2><div id="ttBox"><div class="empty">読み込み中…</div></div></div>
+<div class="card"><h2><span>授業メモ <span class="small muted" style="font-weight:400">予定は授業前、実施・小テスト・宿題は授業後に</span></span></h2><div id="lessonBox"><div class="empty">読み込み中…</div></div></div>
 <div class="card"><h2>個別指導 <span><a class="btn small" href="https://kobetool.net/" target="_blank">KoBETool</a> <button class="btn small" onclick="document.getElementById('kbFile').click()">画像を選ぶ</button></span></h2>
 <div id="kbDrop" class="kbdrop" tabindex="0">ここをクリックしてから <b>Ctrl+V</b>（Macは⌘+V）でKoBEToolの画面を貼り付け<br><span class="small muted">スマホは「画像を選ぶ」から写真・スクショを選択</span></div>
 <input type="file" id="kbFile" accept="image/*" style="display:none" onchange="kbUpload(this.files[0]);this.value=''">
@@ -193,6 +202,9 @@ function render(){
   on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by),a.auto&&a.at&&("受信 "+new Date(a.at).getHours()+":"+String(new Date(a.at).getMinutes()).padStart(2,"0"))].filter(Boolean).map(esc).join("／")}${a.url&&/^https:\/\/comiru\.jp\//.test(a.url)?` <a href="${esc(a.url)}" target="_blank">Comiruで詳細</a>`:""}</div>`));
   on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
   on(`monju_dash/kobetsu/${ds}`,renderKobetsu);
+  lsItems=[];lsPriv={};lsPub={};lsOpen=null;
+  on(`monju_dash/lessons/${ds}`,v=>{lsPriv=v||{};renderLessons();});
+  on(`monju_pub/day/${ds}`,v=>{lsPub=v||{};renderLessons();});
   loadTimetable();
   loadParking();
 }
@@ -290,6 +302,69 @@ document.addEventListener("paste",e=>{
   e.preventDefault();kbUpload(item.getAsFile());
 });
 
+
+// ===== 授業メモ（集団授業ごとの予定・実施・小テスト・宿題） =====
+// 公開してよい項目（実施・小テスト・宿題）は monju_pub、スタッフ専用（予定・メモ）は monju_dash に分けて保存
+let lsItems=[],lsPriv={},lsPub={},lsPrev={},lsOpen=null;
+const lsCk=c=>c.normalize("NFKC").replace(/[\s.#$\[\]\/]/g,"");
+const lsHM=s=>{const m=(s.match(/(\d{1,2})\s*[:：]\s*(\d{2})/)||[]);return m[1]?String(m[1]).padStart(2,"0")+m[2]:"0000";};
+const lsEnd=s=>{const all=[...s.matchAll(/(\d{1,2})\s*[:：]\s*(\d{2})/g)];const m=all[all.length-1];return m?Number(m[1])*60+Number(m[2]):0;};
+const lsKey=i=>`${lsHM(i.time)}_${i.room}`;
+function setLessonItems(items){
+  lsItems=items.filter(i=>!/^(面談)$/.test(i.cls));
+  lsPrev={};
+  const ds=ymd(cur);
+  lsItems.forEach(i=>{
+    const ck=lsCk(i.cls);
+    db.ref(`monju_pub/classLog/${ck}`).orderByKey().endBefore(ds).limitToLast(1).once("value").then(s=>{const v=s.val();if(v){const k=Object.keys(v)[0];lsPrev[lsKey(i)]={date:k.slice(0,10),...v[k]};renderLessons();}}).catch(e=>console.error(e));
+  });
+  renderLessons();
+}
+function renderLessons(){
+  const box=document.getElementById("lessonBox");if(!box)return;
+  if(!lsItems.length){box.innerHTML=`<div class="empty">この日の集団授業（時間割シートの授業）はありません</div>`;return;}
+  const now=new Date(),isToday=ymd(cur)===ymd(now),past=cur<new Date(ymd(now)+"T00:00:00");
+  const nowMin=now.getHours()*60+now.getMinutes();
+  box.innerHTML=lsItems.map(i=>{
+    const k=lsKey(i),pv=lsPriv[k]||{},pb=lsPub[k]||{},pr=lsPrev[k];
+    const ended=past||(isToday&&nowMin>=lsEnd(i.time));
+    const hasDone=!!(pb.done||pb.quiz||pb.homework);
+    const st=hasDone?'<span class="st g">記録済み</span>':ended?'<span class="st r">記録が未入力</span>':pv.plan?'<span class="st b">予定あり</span>':'<span class="st n">予定が未入力</span>';
+    const row=(l,v)=>v?`<dt>${l}</dt><dd>${esc(v)}</dd>`:"";
+    const md=new Date(pr&&pr.date+"T00:00:00");
+    return `<div class="ls${ended&&!hasDone?" late":""}" id="ls_${k}">
+<div class="hd"><span><b>${esc(i.cls)}</b> <span class="muted small">${esc(i.time)}・${i.room}教室${i.tch?"・"+esc(i.tch):""}</span></span><span>${st} <button class="btn small" onclick="lsToggle('${k}')">${lsOpen===k?"閉じる":"入力・編集"}</button></span></div>
+${pr&&pr.homework?`<div class="prev">前回（${md.getMonth()+1}/${md.getDate()}）の宿題：${esc(pr.homework)}${pr.hwDue?`（期限：${esc(pr.hwDue)}）`:""}</div>`:""}
+<dl>${row("予定",pv.plan)}${row("実施",pb.done)}${row("小テスト",pb.quiz)}${row("宿題",pb.homework?pb.homework+(pb.hwDue?`（期限：${pb.hwDue}）`:""):"")}${row("メモ",pv.memo)}</dl>
+${pv.by||pb.by?`<div class="small muted" style="margin-top:4px">記入：${esc(pb.by||pv.by)}</div>`:""}
+<form class="${lsOpen===k?"show":""}" onsubmit="lsSave(event,'${k}')">
+<label>今日やる予定（授業前）</label><textarea name="plan">${esc(pv.plan||"")}</textarea>
+<label>実際にやったこと（授業後）</label><textarea name="done">${esc(pb.done||"")}</textarea>
+<label>小テスト（何をやったか）</label><input name="quiz" value="${esc(pb.quiz||"")}">
+<label>宿題</label><textarea name="homework">${esc(pb.homework||"")}</textarea>
+<label>宿題の期限</label><input name="hwDue" placeholder="次回の授業／11/25 など" value="${esc(pb.hwDue||"")}">
+<label>スタッフ用メモ <span class="lock">※生徒・保護者には出しません</span></label><textarea name="memo">${esc(pv.memo||"")}</textarea>
+<label>記入者</label><input name="by" required value="${esc(pb.by||pv.by||i.tch||"")}">
+<div style="margin-top:8px;text-align:right"><button class="btn primary">保存</button></div>
+</form></div>`;}).join("");
+}
+setInterval(()=>{if(!lsOpen)renderLessons();},60000);
+function lsToggle(k){lsOpen=lsOpen===k?null:k;renderLessons();}
+async function lsSave(e,k){
+  e.preventDefault();
+  const f=Object.fromEntries([...new FormData(e.target)].map(([a,b])=>[a,String(b).trim()]));
+  const i=lsItems.find(x=>lsKey(x)===k);if(!i)return;
+  const ds=ymd(cur),ck=lsCk(i.cls),at=Date.now();
+  const base={cls:i.cls,time:i.time,room:i.room,tch:i.tch||"",by:f.by,at};
+  const pub={...base,done:f.done,quiz:f.quiz,homework:f.homework,hwDue:f.hwDue};
+  const upd={};
+  upd[`monju_dash/lessons/${ds}/${k}`]={...base,plan:f.plan,memo:f.memo};
+  upd[`monju_pub/day/${ds}/${k}`]=pub;
+  upd[`monju_pub/classLog/${ck}/${ds}_${k}`]=(f.done||f.quiz||f.homework)?{...pub,date:ds}:null;
+  try{await db.ref().update(upd);lsOpen=null;toast("授業メモを保存しました");}
+  catch(err){console.error(err);toast("保存に失敗しました");}
+}
+
 // ===== 集団授業（時間割シートの読み取り） =====
 function parseCSV(t){const rows=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++;}else q=false;}else f+=c;}else if(c=='"')q=true;else if(c==","){row.push(f);f="";}else if(c=="\n"){row.push(f);rows.push(row);row=[];f="";}else if(c!="\r")f+=c;}if(f||row.length){row.push(f);rows.push(row);}return rows;}
 const gviz=n=>`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(n)}`;
@@ -337,10 +412,11 @@ async function loadTimetable(){
   const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));
   try{
     const sh=await findWeekSheet(mon);
-    if(!sh){box.innerHTML=`<div class="empty">${mon.getMonth()+1}月${mon.getDate()}日の週の時間割シートが見つかりません。<br>右上の「時間割シート」から確認してください。</div>`;document.getElementById("tClass").textContent="–";return;}
+    if(!sh){setLessonItems([]);box.innerHTML=`<div class="empty">${mon.getMonth()+1}月${mon.getDate()}日の週の時間割シートが見つかりません。<br>右上の「時間割シート」から確認してください。</div>`;document.getElementById("tClass").textContent="–";return;}
     const res=parseDay(sh.rows,d.getDay());
-    if(!res){box.innerHTML=`<div class="empty">この日の時間割を読み取れませんでした（シート「${esc(sh.name.trim())}」）。右上の「時間割シート」から確認してください。</div>`;document.getElementById("tClass").textContent="–";return;}
+    if(!res){setLessonItems([]);box.innerHTML=`<div class="empty">この日の時間割を読み取れませんでした（シート「${esc(sh.name.trim())}」）。右上の「時間割シート」から確認してください。</div>`;document.getElementById("tClass").textContent="–";return;}
     const its=res.items.filter(i=>!/^(面談)$/.test(i.cls));
+    setLessonItems(res.items);
     document.getElementById("tClass").textContent=its.length+"コマ";
     const notes=res.notes.length?`<div class="note">${res.notes.map(esc).join("　")}</div>`:"";
     const slots=[];res.items.forEach(i=>{if(!slots.includes(i.slot))slots.push(i.slot);});
