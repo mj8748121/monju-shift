@@ -56,6 +56,8 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 .st{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}.st.g{background:var(--greenbg);color:var(--green)}.st.r{background:var(--redbg);color:var(--red)}.st.n{background:#f0f3fa;color:var(--muted)}.st.b{background:#eef2fe;color:var(--blue)}
 .ls .prev{background:var(--goldbg);color:#7a5a12;border-radius:8px;padding:5px 9px;font-size:13px;margin:6px 0}
 .ls dl{display:grid;grid-template-columns:72px 1fr;gap:3px 8px;margin:6px 0 0;font-size:14px}.ls dt{color:var(--muted);font-size:12px;padding-top:2px}.ls dd{margin:0;white-space:pre-wrap}
+.horow{display:flex;gap:6px;margin-bottom:4px}.horow input:first-child{flex:1.2}.horow input:nth-child(2){flex:1.5}.horow .x{flex:0 0 auto}
+.ho a{color:var(--blue)}.ho .th{display:block;max-width:140px;max-height:100px;border:1px solid var(--line);border-radius:6px;margin-top:4px;cursor:zoom-in}.ho .th.big{max-width:100%;max-height:none;cursor:zoom-out}
 .ls form{display:none;margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}.ls form.show{display:block}
 .ls label{display:block;font-size:12px;color:var(--muted);margin:6px 0 2px}.ls textarea,.ls input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit}
 .ls textarea{min-height:44px;resize:vertical}.ls .lock{font-size:11px;color:var(--red)}
@@ -202,7 +204,8 @@ function render(){
   on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by),a.auto&&a.at&&("受信 "+new Date(a.at).getHours()+":"+String(new Date(a.at).getMinutes()).padStart(2,"0"))].filter(Boolean).map(esc).join("／")}${a.url&&/^https:\/\/comiru\.jp\//.test(a.url)?` <a href="${esc(a.url)}" target="_blank">Comiruで詳細</a>`:""}</div>`));
   on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
   on(`monju_dash/kobetsu/${ds}`,renderKobetsu);
-  lsItems=[];lsPriv={};lsPub={};lsOpen=null;
+  lsItems=[];lsPriv={};lsPub={};lsImg={};lsOpen=null;
+  on(`monju_dash/lessonImg/${ds}`,v=>{lsImg=v||{};renderLessons();});
   on(`monju_dash/lessons/${ds}`,v=>{lsPriv=v||{};renderLessons();});
   on(`monju_pub/day/${ds}`,v=>{lsPub=v||{};renderLessons();});
   loadTimetable();
@@ -305,7 +308,7 @@ document.addEventListener("paste",e=>{
 
 // ===== 授業メモ（集団授業ごとの予定・実施・小テスト・宿題） =====
 // 公開してよい項目（実施・小テスト・宿題）は monju_pub、スタッフ専用（予定・メモ）は monju_dash に分けて保存
-let lsItems=[],lsPriv={},lsPub={},lsPrev={},lsOpen=null;
+let lsItems=[],lsPriv={},lsPub={},lsPrev={},lsImg={},lsOpen=null;
 const lsCk=c=>c.normalize("NFKC").replace(/[\s.#$\[\]\/]/g,"");
 const lsHM=s=>{const m=(s.match(/(\d{1,2})\s*[:：]\s*(\d{2})/)||[]);return m[1]?String(m[1]).padStart(2,"0")+m[2]:"0000";};
 const lsEnd=s=>{const all=[...s.matchAll(/(\d{1,2})\s*[:：]\s*(\d{2})/g)];const m=all[all.length-1];return m?Number(m[1])*60+Number(m[2]):0;};
@@ -322,20 +325,22 @@ function setLessonItems(items){
 }
 function renderLessons(){
   const box=document.getElementById("lessonBox");if(!box)return;
+  const of=lsOpen&&document.querySelector(`#ls_${lsOpen} form`);
+  const keep=of?[...of.elements].filter(el=>el.name&&el.type!=="file").map(el=>[el.name,el.value]):null;
   if(!lsItems.length){box.innerHTML=`<div class="empty">この日の集団授業（時間割シートの授業）はありません</div>`;return;}
   const now=new Date(),isToday=ymd(cur)===ymd(now),past=cur<new Date(ymd(now)+"T00:00:00");
   const nowMin=now.getHours()*60+now.getMinutes();
   box.innerHTML=lsItems.map(i=>{
     const k=lsKey(i),pv=lsPriv[k]||{},pb=lsPub[k]||{},pr=lsPrev[k];
     const ended=past||(isToday&&nowMin>=lsEnd(i.time));
-    const hasDone=!!(pb.done||pb.quiz||pb.homework);
+    const hasDone=!!(pb.done||pb.quiz||pb.homework||(pb.handouts&&pb.handouts.length));
     const st=hasDone?'<span class="st g">記録済み</span>':ended?'<span class="st r">記録が未入力</span>':pv.plan?'<span class="st b">予定あり</span>':'<span class="st n">予定が未入力</span>';
     const row=(l,v)=>v?`<dt>${l}</dt><dd>${esc(v)}</dd>`:"";
     const md=new Date(pr&&pr.date+"T00:00:00");
     return `<div class="ls${ended&&!hasDone?" late":""}" id="ls_${k}">
 <div class="hd"><span><b>${esc(i.cls)}</b> <span class="muted small">${esc(i.time)}・${i.room}教室${i.tch?"・"+esc(i.tch):""}</span></span><span>${st} <button class="btn small" onclick="lsToggle('${k}')">${lsOpen===k?"閉じる":"入力・編集"}</button></span></div>
 ${pr&&pr.homework?`<div class="prev">前回（${md.getMonth()+1}/${md.getDate()}）の宿題：${esc(pr.homework)}${pr.hwDue?`（期限：${esc(pr.hwDue)}）`:""}</div>`:""}
-<dl>${row("予定",pv.plan)}${row("実施",pb.done)}${row("小テスト",pb.quiz)}${row("宿題",pb.homework?pb.homework+(pb.hwDue?`（期限：${pb.hwDue}）`:""):"")}${row("メモ",pv.memo)}</dl>
+<dl>${row("予定",pv.plan)}${row("実施",pb.done)}${lsHoView(pb.handouts,lsImg[k])}${row("小テスト",pb.quiz)}${row("宿題",pb.homework?pb.homework+(pb.hwDue?`（期限：${pb.hwDue}）`:""):"")}${row("メモ",pv.memo)}</dl>
 ${pv.by||pb.by?`<div class="small muted" style="margin-top:4px">記入：${esc(pb.by||pv.by)}</div>`:""}
 <form class="${lsOpen===k?"show":""}" onsubmit="lsSave(event,'${k}')">
 <label>今日やる予定（授業前）</label><textarea name="plan">${esc(pv.plan||"")}</textarea>
@@ -343,24 +348,51 @@ ${pv.by||pb.by?`<div class="small muted" style="margin-top:4px">記入：${esc(p
 <label>小テスト（何をやったか）</label><input name="quiz" value="${esc(pb.quiz||"")}">
 <label>宿題</label><textarea name="homework">${esc(pb.homework||"")}</textarea>
 <label>宿題の期限</label><input name="hwDue" placeholder="次回の授業／11/25 など" value="${esc(pb.hwDue||"")}">
+<label>配布したもの <span class="small muted">（リンクはGoogleドライブなど・任意）</span></label>
+<div class="horows">${(pb.handouts&&pb.handouts.length?pb.handouts:[{}]).map(h=>lsHoRow(h)).join("")}</div>
+<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap"><button type="button" class="btn small" onclick="this.parentNode.previousElementSibling.insertAdjacentHTML('beforeend',lsHoRow({}))">＋行を追加</button>
+<button type="button" class="btn small" onclick="this.nextElementSibling.click()">${lsImg[k]?"写真を差し替え":"写真を追加"}</button><input type="file" accept="image/*" style="display:none" onchange="lsImgUp('${k}',this.files[0]);this.value=''">
+${lsImg[k]?`<button type="button" class="btn small" onclick="lsImgDel('${k}')">写真を削除</button>`:""}</div>
 <label>スタッフ用メモ <span class="lock">※生徒・保護者には出しません</span></label><textarea name="memo">${esc(pv.memo||"")}</textarea>
 <label>記入者</label><input name="by" required value="${esc(pb.by||pv.by||i.tch||"")}">
 <div style="margin-top:8px;text-align:right"><button class="btn primary">保存</button></div>
 </form></div>`;}).join("");
+  const nf=keep&&document.querySelector(`#ls_${lsOpen} form`);
+  if(nf){
+    const nHo=keep.filter(([n])=>n==="ho_n").length,rows=nf.querySelector(".horows");
+    rows.innerHTML=Array.from({length:Math.max(1,nHo)},()=>lsHoRow({})).join("");
+    const idx={};keep.forEach(([n,v])=>{const els=nf.querySelectorAll(`[name="${n}"]`);const j=idx[n]=(idx[n]||0);if(els[j])els[j].value=v;idx[n]++;});
+  }
 }
 setInterval(()=>{if(!lsOpen)renderLessons();},60000);
+function lsHoRow(h){return `<div class="horow"><input name="ho_n" placeholder="プリント名（例：連立方程式 演習①）" value="${esc(h.n||"")}"><input name="ho_u" placeholder="https://drive.google.com/…" value="${esc(h.u||"")}"><button type="button" class="x" title="この行を消す" onclick="this.parentNode.remove()">✕</button></div>`;}
+function lsHoView(hs,img){
+  hs=(hs||[]).filter(h=>h&&h.n);if(!hs.length&&!img)return "";
+  const li=hs.map(h=>/^https?:\/\//.test(h.u||"")?`<a href="${esc(h.u)}" target="_blank" rel="noopener">${esc(h.n)}</a>`:esc(h.n)).join("、");
+  return `<dt>配布</dt><dd class="ho">${li}${img?`<img class="th" src="${img}" alt="配布物の写真" onclick="this.classList.toggle('big')">`:""}</dd>`;
+}
+async function lsImgUp(k,file){
+  if(!file||!file.type.startsWith("image/")){toast("画像ファイルを選んでください");return;}
+  toast("アップロード中…");
+  try{const data=await kbCompress(file);await db.ref(`monju_dash/lessonImg/${ymd(cur)}/${k}`).set(data);toast("写真を登録しました");}
+  catch(e){console.error(e);toast("写真の登録に失敗しました");}
+}
+async function lsImgDel(k){if(!confirm("配布物の写真を削除しますか？"))return;await db.ref(`monju_dash/lessonImg/${ymd(cur)}/${k}`).remove();toast("写真を削除しました");}
 function lsToggle(k){lsOpen=lsOpen===k?null:k;renderLessons();}
 async function lsSave(e,k){
   e.preventDefault();
-  const f=Object.fromEntries([...new FormData(e.target)].map(([a,b])=>[a,String(b).trim()]));
+  const fd=new FormData(e.target);
+  const f=Object.fromEntries([...fd].filter(([a])=>!a.startsWith("ho_")).map(([a,b])=>[a,String(b).trim()]));
+  const hu=fd.getAll("ho_u");const handouts=fd.getAll("ho_n").map((n,j)=>({n:String(n).trim(),u:String(hu[j]||"").trim()})).filter(h=>h.n);
+  if(handouts.some(h=>h.u&&!/^https?:\/\//.test(h.u))){toast("リンクは https:// から始まるURLを入れてください");return;}
   const i=lsItems.find(x=>lsKey(x)===k);if(!i)return;
   const ds=ymd(cur),ck=lsCk(i.cls),at=Date.now();
   const base={cls:i.cls,time:i.time,room:i.room,tch:i.tch||"",by:f.by,at};
-  const pub={...base,done:f.done,quiz:f.quiz,homework:f.homework,hwDue:f.hwDue};
+  const pub={...base,done:f.done,quiz:f.quiz,homework:f.homework,hwDue:f.hwDue,handouts};
   const upd={};
   upd[`monju_dash/lessons/${ds}/${k}`]={...base,plan:f.plan,memo:f.memo};
   upd[`monju_pub/day/${ds}/${k}`]=pub;
-  upd[`monju_pub/classLog/${ck}/${ds}_${k}`]=(f.done||f.quiz||f.homework)?{...pub,date:ds}:null;
+  upd[`monju_pub/classLog/${ck}/${ds}_${k}`]=(f.done||f.quiz||f.homework||handouts.length)?{...pub,date:ds}:null;
   try{await db.ref().update(upd);lsOpen=null;toast("授業メモを保存しました");}
   catch(err){console.error(err);toast("保存に失敗しました");}
 }
