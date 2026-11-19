@@ -58,6 +58,8 @@ form.add input,form.add select{border:1px solid var(--line);border-radius:8px;pa
 .ls dl{display:grid;grid-template-columns:72px 1fr;gap:3px 8px;margin:6px 0 0;font-size:14px}.ls dt{color:var(--muted);font-size:12px;padding-top:2px}.ls dd{margin:0;white-space:pre-wrap}
 .horow{display:flex;gap:6px;margin-bottom:4px}.horow input:first-child{flex:1.2}.horow input:nth-child(2){flex:1.5}.horow .x{flex:0 0 auto}
 .ho a{color:var(--blue)}.ho .th{display:block;max-width:140px;max-height:100px;border:1px solid var(--line);border-radius:6px;margin-top:4px;cursor:zoom-in}.ho .th.big{max-width:100%;max-height:none;cursor:zoom-out}
+.prep{display:flex;flex-direction:column;gap:3px}.prep label.pi{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);margin:0;cursor:pointer}.prep label.pi input{width:auto;margin:0}.prep label.pi.ok span{color:var(--muted);text-decoration:line-through}
+.prep .padd{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}.prep .padd input{flex:1 1 120px;width:auto;padding:4px 6px;font-size:13px}.prep .chip{border:1px dashed var(--line);background:#fff;border-radius:12px;padding:2px 8px;font-size:12px;cursor:pointer;color:var(--muted)}
 .ls form{display:none;margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}.ls form.show{display:block}
 .ls label{display:block;font-size:12px;color:var(--muted);margin:6px 0 2px}.ls textarea,.ls input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit}
 .ls textarea{min-height:44px;resize:vertical}.ls .lock{font-size:11px;color:var(--red)}
@@ -143,6 +145,9 @@ table.tk tr.tkmiss td{background:#fffdf7}.mi{display:inline-block;margin:2px 12p
 <div class="col">
 <div class="card"><h2>集団授業 <a class="btn small" id="sheetLink" target="_blank" href="https://docs.google.com/spreadsheets/d/13EQ_hRjnpaaDBtxd4L9E5OlUzbAcUFiXqcalVdUIJGU/edit">時間割シート</a></h2><div id="ttBox"><div class="empty">読み込み中…</div></div></div>
 <div class="card"><h2><span>授業メモ <span class="small muted" style="font-weight:400">予定は授業前、実施・小テスト・宿題は授業後に</span></span></h2><div id="lessonBox"><div class="empty">読み込み中…</div></div></div>
+<div class="card" id="hoCard"><h2>配布物の記録 <span><button class="btn small" onclick="hoLoad()">読み込み・更新</button> <button class="btn small" onclick="hoCsv()">スプレッドシート用に書き出し</button></span></h2>
+<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"><select id="hoCls" onchange="hoRender()" style="border:1px solid var(--line);border-radius:8px;padding:6px"><option value="">すべてのクラス</option></select><input id="hoQ" placeholder="プリント名で検索" oninput="hoRender()" style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:6px 8px"></div>
+<div id="hoBox"><div class="empty">「読み込み・更新」を押すと、これまでの配布物が一覧で出ます</div></div></div>
 <div class="card"><h2>個別指導 <span><a class="btn small" href="https://kobetool.net/" target="_blank">KoBETool</a> <button class="btn small" onclick="document.getElementById('kbFile').click()">画像を選ぶ</button></span></h2>
 <div id="kbDrop" class="kbdrop" tabindex="0">ここをクリックしてから <b>Ctrl+V</b>（Macは⌘+V）でKoBEToolの画面を貼り付け<br><span class="small muted">スマホは「画像を選ぶ」から写真・スクショを選択</span></div>
 <input type="file" id="kbFile" accept="image/*" style="display:none" onchange="kbUpload(this.files[0]);this.value=''">
@@ -180,7 +185,7 @@ async function gateLogin(){
 }
 firebase.auth().onAuthStateChanged(u=>{
   document.getElementById("gate").style.display=u?"none":"flex";
-  if(u){render();watchTeiki();}
+  if(u){render();watchTeiki();hoLoad();}
 });
 
 function moveDay(n){cur.setDate(cur.getDate()+n);render();}
@@ -204,7 +209,8 @@ function render(){
   on(`monju_dash/absences/${ds}`,v=>renderList("absList","tAbs",v,"absences",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.lesson?`<span class="muted">${esc(a.lesson)}</span>`:""}<div class="small muted">${[a.reason,a.via&&("連絡："+a.via),a.by&&("受付："+a.by),a.auto&&a.at&&("受信 "+new Date(a.at).getHours()+":"+String(new Date(a.at).getMinutes()).padStart(2,"0"))].filter(Boolean).map(esc).join("／")}${a.url&&/^https:\/\/comiru\.jp\//.test(a.url)?` <a href="${esc(a.url)}" target="_blank">Comiruで詳細</a>`:""}</div>`));
   on(`monju_dash/trials/${ds}`,v=>renderList("trialList","tTrial",v,"trials",a=>`${gradeTag(a)}<b>${esc(a.name)}</b> ${a.school?`<span class="muted">（${esc(a.school)}）</span>`:""} ${a.time?esc(a.time):""}<div class="small muted">${[a.subject,a.memo].filter(Boolean).map(esc).join("／")}</div>`));
   on(`monju_dash/kobetsu/${ds}`,renderKobetsu);
-  lsItems=[];lsPriv={};lsPub={};lsImg={};lsOpen=null;
+  lsItems=[];lsPriv={};lsPub={};lsImg={};lsPrep={};lsOpen=null;
+  on(`monju_dash/prep/${ds}`,v=>{lsPrep=v||{};renderLessons();});
   on(`monju_dash/lessonImg/${ds}`,v=>{lsImg=v||{};renderLessons();});
   on(`monju_dash/lessons/${ds}`,v=>{lsPriv=v||{};renderLessons();});
   on(`monju_pub/day/${ds}`,v=>{lsPub=v||{};renderLessons();});
@@ -308,7 +314,8 @@ document.addEventListener("paste",e=>{
 
 // ===== 授業メモ（集団授業ごとの予定・実施・小テスト・宿題） =====
 // 公開してよい項目（実施・小テスト・宿題）は monju_pub、スタッフ専用（予定・メモ）は monju_dash に分けて保存
-let lsItems=[],lsPriv={},lsPub={},lsPrev={},lsImg={},lsOpen=null;
+let lsItems=[],lsPriv={},lsPub={},lsPrev={},lsImg={},lsPrep={},lsOpen=null;
+const PREP_PRESET=["プリント印刷","小テスト準備","前回の宿題チェック表","解答・解説の準備"];
 const lsCk=c=>c.normalize("NFKC").replace(/[\s.#$\[\]\/]/g,"");
 const lsHM=s=>{const m=(s.match(/(\d{1,2})\s*[:：]\s*(\d{2})/)||[]);return m[1]?String(m[1]).padStart(2,"0")+m[2]:"0000";};
 const lsEnd=s=>{const all=[...s.matchAll(/(\d{1,2})\s*[:：]\s*(\d{2})/g)];const m=all[all.length-1];return m?Number(m[1])*60+Number(m[2]):0;};
@@ -335,12 +342,14 @@ function renderLessons(){
     const ended=past||(isToday&&nowMin>=lsEnd(i.time));
     const hasDone=!!(pb.done||pb.quiz||pb.homework||(pb.handouts&&pb.handouts.length));
     const st=hasDone?'<span class="st g">記録済み</span>':ended?'<span class="st r">記録が未入力</span>':pv.plan?'<span class="st b">予定あり</span>':'<span class="st n">予定が未入力</span>';
+    const pp=Object.entries(lsPrep[k]||{}).sort((a,b)=>(a[1].at||0)-(b[1].at||0)),pd=pp.filter(([,x])=>x.done).length;
+    const pst=pp.length&&!hasDone?(pd===pp.length?'<span class="st g">準備OK</span> ':`<span class="st n">準備 ${pd}/${pp.length}</span> `):"";
     const row=(l,v)=>v?`<dt>${l}</dt><dd>${esc(v)}</dd>`:"";
     const md=new Date(pr&&pr.date+"T00:00:00");
     return `<div class="ls${ended&&!hasDone?" late":""}" id="ls_${k}">
-<div class="hd"><span><b>${esc(i.cls)}</b> <span class="muted small">${esc(i.time)}・${i.room}教室${i.tch?"・"+esc(i.tch):""}</span></span><span>${st} <button class="btn small" onclick="lsToggle('${k}')">${lsOpen===k?"閉じる":"入力・編集"}</button></span></div>
+<div class="hd"><span><b>${esc(i.cls)}</b> <span class="muted small">${esc(i.time)}・${i.room}教室${i.tch?"・"+esc(i.tch):""}</span></span><span>${pst}${st} <button class="btn small" onclick="lsToggle('${k}')">${lsOpen===k?"閉じる":"入力・編集"}</button></span></div>
 ${pr&&pr.homework?`<div class="prev">前回（${md.getMonth()+1}/${md.getDate()}）の宿題：${esc(pr.homework)}${pr.hwDue?`（期限：${esc(pr.hwDue)}）`:""}</div>`:""}
-<dl>${row("予定",pv.plan)}${row("実施",pb.done)}${lsHoView(pb.handouts,lsImg[k])}${row("小テスト",pb.quiz)}${row("宿題",pb.homework?pb.homework+(pb.hwDue?`（期限：${pb.hwDue}）`:""):"")}${row("メモ",pv.memo)}</dl>
+<dl>${row("予定",pv.plan)}${lsPrepView(k,pp)}${row("実施",pb.done)}${lsHoView(pb.handouts,lsImg[k])}${row("小テスト",pb.quiz)}${row("宿題",pb.homework?pb.homework+(pb.hwDue?`（期限：${pb.hwDue}）`:""):"")}${row("メモ",pv.memo)}</dl>
 ${pv.by||pb.by?`<div class="small muted" style="margin-top:4px">記入：${esc(pb.by||pv.by)}</div>`:""}
 <form class="${lsOpen===k?"show":""}" onsubmit="lsSave(event,'${k}')">
 <label>今日やる予定（授業前）</label><textarea name="plan">${esc(pv.plan||"")}</textarea>
@@ -378,6 +387,43 @@ async function lsImgUp(k,file){
   catch(e){console.error(e);toast("写真の登録に失敗しました");}
 }
 async function lsImgDel(k){if(!confirm("配布物の写真を削除しますか？"))return;await db.ref(`monju_dash/lessonImg/${ymd(cur)}/${k}`).remove();toast("写真を削除しました");}
+
+function lsPrepView(k,pp){
+  const items=pp.map(([id,x])=>`<label class="pi${x.done?" ok":""}"><input type="checkbox" ${x.done?"checked":""} onchange="lsPrepTick('${k}','${id}',this.checked)"><span>${esc(x.t)}</span><button type="button" class="x" title="削除" onclick="event.preventDefault();lsPrepDel('${k}','${id}')">✕</button></label>`).join("");
+  const have=new Set(pp.map(([,x])=>x.t));
+  const chips=PREP_PRESET.filter(s=>!have.has(s)).map(s=>`<button type="button" class="chip" onclick="lsPrepAdd('${k}',${JSON.stringify(s).replace(/"/g,"&quot;")})">＋${esc(s)}</button>`).join("");
+  return `<dt>準備</dt><dd><div class="prep">${items}<div class="padd"><input placeholder="準備項目を追加" onkeydown="if(event.key==='Enter'){event.preventDefault();lsPrepAdd('${k}',this.value);}"><button type="button" class="btn small" onclick="lsPrepAdd('${k}',this.previousElementSibling.value)">追加</button>${chips}</div></div></dd>`;
+}
+async function lsPrepAdd(k,txt){txt=String(txt||"").trim();if(!txt)return;await db.ref(`monju_dash/prep/${ymd(cur)}/${k}`).push({t:txt,done:false,at:Date.now()});}
+async function lsPrepTick(k,id,v){await db.ref(`monju_dash/prep/${ymd(cur)}/${k}/${id}`).update({done:v,doneAt:v?Date.now():null});}
+async function lsPrepDel(k,id){if(!confirm("この準備項目を削除しますか？"))return;await db.ref(`monju_dash/prep/${ymd(cur)}/${k}/${id}`).remove();}
+
+// ===== 配布物の記録（全クラスの配布物を一覧・検索・書き出し） =====
+let hoAll=null;
+async function hoLoad(){
+  const box=document.getElementById("hoBox");box.innerHTML=`<div class="empty">読み込み中…</div>`;
+  const v=(await db.ref("monju_pub/classLog").once("value")).val()||{};
+  hoAll=[];
+  Object.values(v).forEach(byk=>Object.values(byk).forEach(r=>(r.handouts||[]).forEach(h=>{if(h&&h.n)hoAll.push({date:r.date||"",time:r.time||"",cls:r.cls||"",tch:r.by||r.tch||"",n:h.n,u:h.u||""});})));
+  hoAll.sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const cl=[...new Set(hoAll.map(x=>x.cls))].sort();
+  document.getElementById("hoCls").innerHTML=`<option value="">すべてのクラス</option>`+cl.map(c=>`<option>${esc(c)}</option>`).join("");
+  hoRender();
+}
+function hoFiltered(){const c=document.getElementById("hoCls").value,q=document.getElementById("hoQ").value.trim();return (hoAll||[]).filter(x=>(!c||x.cls===c)&&(!q||x.n.includes(q)));}
+function hoRender(){
+  const rows=hoFiltered(),box=document.getElementById("hoBox");
+  if(!rows.length){box.innerHTML=`<div class="empty">該当する配布物はありません</div>`;return;}
+  box.innerHTML=`<div class="small muted" style="margin-bottom:4px">${rows.length}件</div><div class="tkwrap"><table class="tt"><colgroup><col style="width:16%"><col style="width:22%"><col><col style="width:16%"></colgroup><tr><th>日付</th><th>クラス</th><th>プリント</th><th>記入者</th></tr>`+
+    rows.map(x=>{const d=new Date(x.date+"T00:00:00");return `<tr><td>${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）</td><td>${esc(x.cls)}</td><td>${/^https?:\/\//.test(x.u)?`<a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.n)}</a>`:esc(x.n)}</td><td class="muted">${esc(x.tch)}</td></tr>`;}).join("")+`</table></div>`;
+}
+function hoCsv(){
+  const rows=hoFiltered();if(!rows.length){toast("書き出す配布物がありません");return;}
+  const q=s=>`"${String(s).replace(/"/g,'""')}"`;
+  const csv="﻿"+[["日付","時間","クラス","プリント名","リンク","記入者"].map(q).join(",")].concat(rows.map(x=>[x.date,x.time,x.cls,x.n,x.u,x.tch].map(q).join(","))).join("\r\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`配布物の記録_${ymd(new Date())}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
 function lsToggle(k){lsOpen=lsOpen===k?null:k;renderLessons();}
 async function lsSave(e,k){
   e.preventDefault();
